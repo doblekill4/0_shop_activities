@@ -1,0 +1,36 @@
+<!-- pages/admin/departments/departments.wxml -->
+<view class="admin-page">
+  <scroll-view scroll-y class="admin-scroll">
+
+    <view class="tip-banner">
+      <text>部门群组用于批量发送通知，可自由增删成员。</text>
+    </view>
+
+    <view class="card group-card" wx:for="{{departments}}" wx:key="id">
+      <view class="group-header">
+        <view class="group-info">
+          <text class="group-name">{{item.name}}</text>
+          <text class="group-count">{{item.members.length}} 人</text>
+        </view>
+        <view class="group-actions">
+          <view class="action-btn" bindtap="editDept" data-id="{{item.id}}">编辑成员</view>
+          <view class="action-btn danger" bindtap="deleteDept" data-id="{{item.id}}">删除</view>
+        </view>
+      </view>
+
+      <view class="member-chips">
+        <view class="member-chip" wx:for="{{item.members}}" wx:for-item="m" wx:key="userId">
+          <text>{{m.name}}</text>
+        </view>
+        <view class="member-chip add" bindtap="addMember" data-dept-id="{{item.id}}">
+          <text>＋</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="add-group-btn" bindtap="addDept">
+      <text>＋ 新建部门群组</text>
+    </view>
+
+  </scroll-view>
+</view>

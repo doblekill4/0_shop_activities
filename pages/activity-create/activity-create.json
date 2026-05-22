@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "新建活动",
+  "usingComponents": {
+    "register-dialog": "/components/register-dialog/register-dialog"
+  }
+}

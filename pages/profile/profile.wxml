@@ -1,0 +1,74 @@
+<!-- pages/profile/profile.wxml -->
+<view class="profile-page">
+
+  <!-- 用户信息头部 -->
+  <view class="user-header bg-primary">
+    <image class="user-avatar" src="{{userInfo.avatarUrl || '/assets/images/default-avatar.png'}}" mode="aspectFill" />
+    <view class="user-info">
+      <text class="user-name">{{userInfo.name || '未登录'}}</text>
+      <text class="user-dept">{{userInfo.department || '—'}}</text>
+      <view class="role-tag">{{userInfo.roleLabel}}</view>
+    </view>
+  </view>
+
+  <scroll-view scroll-y class="profile-scroll">
+
+    <!-- 我的权限 -->
+    <view class="card section-card">
+      <text class="section-title">我的权限</text>
+      <view class="perm-grid">
+        <view class="perm-item {{item.has ? 'has' : 'no'}}"
+          wx:for="{{permList}}" wx:key="key">
+          <text class="perm-icon">{{item.has ? '✓' : '✗'}}</text>
+          <text class="perm-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 管理员入口（细粒度权限控制） -->
+    <view class="card section-card" wx:if="{{isAdmin}}">
+      <text class="section-title">管理员功能</text>
+      <view class="menu-list">
+        <view class="menu-item" bindtap="goPermissions" wx:if="{{permFlags.manageUsers}}">
+          <text class="menu-icon">🔐</text>
+          <text class="menu-label">权限组管理</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="goDepartments" wx:if="{{permFlags.manageDepartments}}">
+          <text class="menu-icon">🏢</text>
+          <text class="menu-label">部门群组管理</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="goExport" wx:if="{{permFlags.exportData}}">
+          <text class="menu-icon">📤</text>
+          <text class="menu-label">数据导出</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="goNotificationConfig" wx:if="{{permFlags.sendNotification}}">
+          <text class="menu-icon">🔔</text>
+          <text class="menu-label">通知配置</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 关于 -->
+    <view class="card section-card">
+      <view class="menu-list">
+        <view class="menu-item">
+          <text class="menu-icon">📱</text>
+          <text class="menu-label">版本</text>
+          <text class="menu-val">v1.0.0</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 退出登录 -->
+    <view class="logout-btn" bindtap="logout">
+      <text>退出登录</text>
+    </view>
+
+    <view style="height: 60rpx;" />
+  </scroll-view>
+
+</view>

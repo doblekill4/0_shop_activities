@@ -1,0 +1,33 @@
+# Windows
+Desktop.ini
+Thumbs.db
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+
+# Node.js
+node_modules/
+
+# 微信小程序
+project.private.config.json
+*.log
+
+# WorkBuddy（AI 工作记忆，个人上下文不纳入版本控制）
+.workbuddy/
+
+# 云函数依赖
+cloudfunctions/*/node_modules/
+
+# 构建产物
+dist/
+miniprogram_npm/
+
+# 临时文件
+*.tmp
+*.bak
+nul

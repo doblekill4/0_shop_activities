@@ -1,0 +1,16 @@
+<view class="mask" wx:if="{{visible}}">
+  <view class="dialog">
+    <view class="title">首次使用，请完善信息</view>
+    <view class="form">
+      <view class="field">
+        <text class="label">姓名</text>
+        <input class="input" placeholder="请输入姓名" value="{{name}}" bindinput="onNameInput" />
+      </view>
+      <view class="field">
+        <text class="label">部门</text>
+        <input class="input" placeholder="请输入部门" value="{{department}}" bindinput="onDeptInput" />
+      </view>
+    </view>
+    <button class="btn-submit" bindtap="handleRegister" loading="{{loading}}">注册</button>
+  </view>
+</view>

@@ -1,0 +1,252 @@
+/* pages/activity-create/activity-create.wxss */
+.create-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.form-scroll { flex: 1; }
+
+/* 提示横幅 */
+.banner-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  background: #FFF8E1;
+  border-left: 6rpx solid #FFC107;
+  padding: 20rpx 24rpx;
+  margin: 16rpx 24rpx;
+  border-radius: 8rpx;
+}
+
+.tip-icon { font-size: 28rpx; flex-shrink: 0; }
+.tip-text { font-size: 24rpx; color: #6D4C41; line-height: 1.6; }
+
+/* 分区 */
+.form-section { margin: 16rpx 24rpx; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
+.section-title  { font-size: 30rpx; font-weight: 700; color: #222; margin-bottom: 20rpx; display: block; }
+
+.form-textarea { min-height: 120rpx; line-height: 1.7; }
+
+.picker-value { color: #333; }
+.picker-value.placeholder { color: #bbb; }
+
+/* 环节表单 */
+.add-step-btn {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.step-form-list { display: flex; flex-direction: column; gap: 20rpx; }
+
+.step-form-item {
+  border: 1rpx solid #e0e0e0;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  background: #fafafa;
+}
+
+.step-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.step-form-num { font-size: 26rpx; font-weight: 600; color: #2E7D32; }
+
+.step-remove {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: #FFEBEE;
+  color: #D32F2F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+}
+
+.step-row  { display: flex; gap: 16rpx; }
+.flex-1    { flex: 1; }
+
+.step-time-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10rpx;
+}
+
+.flex-half      { flex: 1; }
+.step-time-sep  { font-size: 28rpx; color: #888; padding-bottom: 20rpx; }
+
+/* 场地需求切换 */
+.need-toggle-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.need-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
+  background: #f5f5f5;
+  border: 2rpx solid #eee;
+  font-size: 22rpx;
+  color: #aaa;
+  gap: 8rpx;
+  width: calc(20% - 14rpx);
+}
+
+.need-toggle.active {
+  background: #E8F5E9;
+  border-color: #2E7D32;
+  color: #2E7D32;
+}
+
+.need-icon { font-size: 36rpx; }
+
+/* 香囊 */
+.sachet-section { border: 2rpx solid #FFC107; background: #FFFDE7; }
+
+.warn-tag {
+  font-size: 22rpx;
+  color: #F57C00;
+  background: #FFF3E0;
+  padding: 4rpx 14rpx;
+  border-radius: 12rpx;
+}
+
+.sachet-choice {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 16rpx;
+}
+
+.sachet-opt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28rpx 0;
+  border-radius: 16rpx;
+  border: 2rpx solid #eee;
+  background: #f9f9f9;
+  gap: 12rpx;
+}
+
+.sachet-opt-icon  { font-size: 48rpx; }
+.sachet-opt-label { font-size: 26rpx; color: #666; font-weight: 500; }
+
+.sachet-opt.selected.clinic {
+  border-color: #C62828;
+  background: #FFEBEE;
+}
+.sachet-opt.selected.clinic .sachet-opt-label { color: #C62828; font-weight: 700; }
+
+.sachet-opt.selected.shop {
+  border-color: #2E7D32;
+  background: #E8F5E9;
+}
+.sachet-opt.selected.shop .sachet-opt-label { color: #2E7D32; font-weight: 700; }
+
+/* 底部操作 */
+.bottom-actions {
+  display: flex;
+  gap: 16rpx;
+  padding: 24rpx 24rpx 0;
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+/* 悬浮添加环节按钮：滚动时始终可见 */
+.fab-add-step {
+  position: fixed;
+  right: 32rpx;
+  bottom: 120rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #2E7D32;
+  color: #fff;
+  padding: 16rpx 28rpx;
+  border-radius: 40rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  box-shadow: 0 4rpx 16rpx rgba(46,125,50,0.35);
+  z-index: 100;
+}
+.fab-icon { font-size: 32rpx; font-weight: 700; }
+.fab-text { font-size: 24rpx; }
+
+/* 步骤区域为空提示 */
+.step-empty-tip {
+  text-align: center;
+  padding: 40rpx 0;
+  color: #aaa;
+  font-size: 24rpx;
+}
+
+/* 自定义时间选择器弹窗 */
+.time-picker-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+.time-picker-popup {
+  width: 100%;
+  background: #fff;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 24rpx 0 48rpx;
+}
+.time-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 32rpx 16rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.time-picker-cancel { color: #999; font-size: 28rpx; padding: 8rpx 16rpx; }
+.time-picker-confirm { color: #2E7D32; font-size: 28rpx; font-weight: 600; padding: 8rpx 16rpx; }
+.time-picker-body {
+  display: flex;
+  height: 360rpx;
+  position: relative;
+}
+.time-picker-col {
+  flex: 1;
+  height: 360rpx;
+}
+.time-picker-indicator {
+  position: absolute;
+  top: 50%;
+  left: 0; right: 0;
+  height: 72rpx;
+  transform: translateY(-50%);
+  border-top: 1rpx solid #e0e0e0;
+  border-bottom: 1rpx solid #e0e0e0;
+  pointer-events: none;
+}
+.time-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #333;
+  height: 72rpx;
+}

@@ -1,0 +1,65 @@
+{
+  "pages": [
+    "pages/activity-list/activity-list",
+    "pages/activity-create/activity-create",
+    "pages/activity-detail/activity-detail",
+    "pages/activity-edit/activity-edit",
+    "pages/gantt/gantt",
+    "pages/profile/profile",
+    "pages/admin/permissions/permissions",
+    "pages/admin/departments/departments",
+    "pages/login/login"
+  ],
+  "subpackages": [
+    {
+      "root": "subpackages/admin",
+      "pages": [
+        "pages/export/export",
+        "pages/notification-config/notification-config"
+      ]
+    }
+  ],
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#2E7D32",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/activity-list/activity-list",
+        "text": "活动",
+        "iconPath": "assets/icons/activity.png",
+        "selectedIconPath": "assets/icons/activity-active.png"
+      },
+      {
+        "pagePath": "pages/gantt/gantt",
+        "text": "甘特图",
+        "iconPath": "assets/icons/gantt.png",
+        "selectedIconPath": "assets/icons/gantt-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "assets/icons/profile.png",
+        "selectedIconPath": "assets/icons/profile-active.png"
+      }
+    ]
+  },
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#2E7D32",
+    "navigationBarTitleText": "知嘛健康零号店",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f5f5"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "活动定位使用"
+    }
+  },
+  "requiredPrivateInfos": [],
+  "cloud": true,
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {}
+}

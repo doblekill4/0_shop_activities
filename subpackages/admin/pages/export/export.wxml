@@ -1,0 +1,65 @@
+<!-- subpackages/admin/pages/export/export.wxml -->
+<view class="export-page">
+  <scroll-view scroll-y class="export-scroll">
+
+    <view class="card">
+      <text class="section-title">导出格式</text>
+      <view class="format-list">
+        <view
+          class="format-opt {{selectedFormat === 'text' ? 'selected' : ''}}"
+          bindtap="selectFormat" data-format="text"
+        >
+          <text class="format-icon">📄</text>
+          <view>
+            <text class="format-name">文字模板导出</text>
+            <text class="format-desc">按活动预定信息模板格式导出</text>
+          </view>
+        </view>
+        <view
+          class="format-opt {{selectedFormat === 'excel' ? 'selected' : ''}}"
+          bindtap="selectFormat" data-format="excel"
+        >
+          <text class="format-icon">📊</text>
+          <view>
+            <text class="format-name">Excel 模板导出</text>
+            <text class="format-desc">按 Excel 表格模板批量导出</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <text class="section-title">选择活动</text>
+      <view class="select-all-row">
+        <text>全选</text>
+        <switch checked="{{selectAll}}" bindchange="toggleSelectAll" color="#2E7D32" />
+      </view>
+      <view class="activity-select-list">
+        <view
+          class="activity-select-item"
+          wx:for="{{activities}}"
+          wx:key="id"
+          bindtap="toggleSelect"
+          data-id="{{item.id}}"
+        >
+          <checkbox value="{{item.id}}" checked="{{item.selected}}" color="#2E7D32" />
+          <view class="select-info">
+            <text class="select-unit">{{item.activityUnit}}</text>
+            <text class="select-date">{{item.activityDate}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="export-preview card" wx:if="{{selectedFormat === 'text' && previewText}}">
+      <text class="section-title">预览</text>
+      <text class="preview-text">{{previewText}}</text>
+    </view>
+
+    <button class="btn-primary export-btn" bindtap="doExport" loading="{{exporting}}">
+      导出 {{selectedCount}} 个活动
+    </button>
+
+    <view style="height: 60rpx;" />
+  </scroll-view>
+</view>

@@ -1,0 +1,132 @@
+<!-- pages/activity-list/activity-list.wxml -->
+<view class="list-page">
+
+  <!-- 顶部搜索与筛选 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <text class="search-icon">🔍</text>
+      <input
+        class="search-input"
+        placeholder="搜索活动名称 / 单位"
+        value="{{searchKey}}"
+        bindinput="onSearchInput"
+        confirm-type="search"
+      />
+    </view>
+    <view class="filter-btn" bindtap="toggleFilter">
+      <text>筛选</text>
+      <text wx:if="{{activeFilters > 0}}" class="filter-badge">{{activeFilters}}</text>
+    </view>
+  </view>
+
+  <!-- 统计条 -->
+  <view class="stat-bar">
+    <text class="stat-text">共 {{total}} 个活动</text>
+    <view class="add-btn" bindtap="goCreate" wx:if="{{canCreate}}">
+      <text class="add-icon">＋</text>
+      <text>新建活动</text>
+    </view>
+  </view>
+
+  <!-- 活动列表 -->
+  <scroll-view
+    class="activity-list"
+    scroll-y
+    enhanced
+    bounces
+    refresher-enabled
+    refresher-triggered="{{refreshing}}"
+    bindrefresherrefresh="onRefresh"
+    bindscrolltolower="onLoadMore"
+  >
+    <view wx:if="{{loading && activities.length === 0}}" class="loading-wrapper">
+      <view class="loading-dot" />
+    </view>
+
+    <view wx:elif="{{activities.length === 0}}" class="empty-state">
+      <text class="empty-icon">📋</text>
+      <text>暂无活动</text>
+      <text class="empty-sub">上传订金凭证后活动将出现在这里</text>
+    </view>
+
+    <block wx:else>
+      <view
+        class="activity-card card"
+        wx:for="{{activities}}"
+        wx:key="id"
+        data-id="{{item._id}}"
+        bindtap="goDetail"
+      >
+        <!-- 卡片头部 -->
+        <view class="card-header">
+          <view class="activity-date-block">
+            <text class="activity-month">{{item.activityMonth}}</text>
+            <text class="activity-day">{{item.activityDay}}</text>
+          </view>
+          <view class="activity-meta">
+            <text class="activity-unit">{{item.activityUnit}}</text>
+            <text class="activity-time">{{item.activityDate}} {{item.firstStepTime}}</text>
+          </view>
+          <view class="card-right">
+            <view class="tag {{item.statusClass}}">{{item.statusLabel}}</view>
+            <text class="people-count">👥 {{item.peopleCount}}人</text>
+          </view>
+        </view>
+
+        <view class="divider" />
+
+        <!-- 场地与业务 -->
+        <view class="card-body">
+          <view class="info-row">
+            <text class="info-label">📍</text>
+            <text class="info-value">{{item.venue}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">💼</text>
+            <text class="info-value">{{item.businessType}}</text>
+          </view>
+        </view>
+
+        <!-- 环节进度预览 -->
+        <view class="steps-preview" wx:if="{{item.steps && item.steps.length > 0}}">
+          <view
+            class="step-dot {{step.status === 'done' ? 'done' : step.status === 'doing' ? 'doing' : 'todo'}}"
+            wx:for="{{item.steps}}"
+            wx:for-item="step"
+            wx:key="id"
+          />
+        </view>
+
+        <!-- 凭证状态 -->
+        <view class="voucher-row">
+          <view class="voucher-item {{item.depositVoucher ? 'uploaded' : 'missing'}}">
+            <text>{{item.depositVoucher ? '✓' : '✗'}} 订金</text>
+          </view>
+          <view class="voucher-item {{item.settlementVoucher ? 'uploaded' : 'missing'}}">
+            <text>{{item.settlementVoucher ? '✓' : '✗'}} 结算</text>
+          </view>
+          <view class="voucher-item {{item.billVoucher ? 'uploaded' : 'missing'}}">
+            <text>{{item.billVoucher ? '✓' : '✗'}} 账单</text>
+          </view>
+        </view>
+
+        <!-- 预订人 -->
+        <view class="footer-row">
+          <text class="footer-meta">预订人：{{item.bookingPerson}}</text>
+          <text class="footer-meta">对接人：{{item.contactPerson}}</text>
+        </view>
+      </view>
+
+      <!-- 加载更多 -->
+      <view class="load-more" wx:if="{{hasMore}}">
+        <text>加载更多...</text>
+      </view>
+      <view class="no-more" wx:elif="{{activities.length > 0}}">
+        <text>—— 已全部加载 ——</text>
+      </view>
+    </block>
+  </scroll-view>
+
+  <register-dialog visible="{{showRegister}}" bind:success="onRegisterSuccess" />
+
+</view>

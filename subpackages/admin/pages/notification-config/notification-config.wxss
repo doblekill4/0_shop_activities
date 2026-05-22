@@ -1,0 +1,96 @@
+/* subpackages/admin/pages/notification-config/notification-config.wxss */
+.notif-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.notif-scroll {
+  flex:1;
+}
+
+.tip-banner {
+  background: #E3F2FD;
+  padding: 20rpx 28rpx;
+  margin: 16rpx 24rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  color: #1565C0;
+}
+
+.card { margin: 16rpx 24rpx; }
+.section-title { font-size:30rpx; font-weight:700; color:#222; margin-bottom:20rpx; display:block; }
+
+.rule-list { display: flex; flex-direction: column; gap: 24rpx; }
+
+.rule-item {
+  border: 1rpx solid #e0e0e0;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  background: #fafafa;
+}
+
+.rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.rule-title { font-size: 26rpx; font-weight: 600; color: #333; }
+
+.rule-del {
+  color: #D32F2F;
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  background: #FFEBEE;
+  border-radius: 12rpx;
+}
+
+.form-input.picker-value { color: #333; }
+.form-input.picker-value { min-height: 80rpx; display: flex; align-items: center; }
+
+.target-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 8rpx;
+}
+
+.target-chip {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+}
+
+.target-chip.add {
+  background: #f5f5f5;
+  border: 1rpx dashed #ccc;
+  color: #888;
+}
+
+.chip-del {
+  margin-left: 6rpx;
+  font-weight: 700;
+}
+
+.add-rule-btn {
+  margin: 0 24rpx 24rpx;
+  background: #fff;
+  border: 2rpx dashed #2E7D32;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #2E7D32;
+  font-weight: 600;
+}
+
+.save-btn {
+  margin: 8rpx 24rpx;
+  padding: 28rpx 0;
+  width: calc(100% - 48rpx);
+}

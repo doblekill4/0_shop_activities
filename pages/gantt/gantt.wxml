@@ -1,0 +1,97 @@
+<!--pages/gantt/gantt.wxml - 按天/小时视图，左侧活动名列冻结不随横向滚动移动-->
+<view class="gantt-page">
+
+  <!-- 日期导航 -->
+  <view class="gantt-nav">
+    <view class="nav-arrow" bindtap="prevDay">‹</view>
+    <view class="nav-title" bindtap="goToday">
+      <text class="nav-date">{{currentDateLabel}}</text>
+    </view>
+    <view class="nav-arrow" bindtap="nextDay">›</view>
+  </view>
+
+  <!-- 筛选开关 -->
+  <view class="filter-bar">
+    <view class="filter-label">包含待确认活动</view>
+    <switch checked="{{includePending}}" bindchange="toggleIncludePending" color="#1890ff" />
+  </view>
+
+  <!-- 主体：左侧冻结列 + 右侧可横向滚动区域 -->
+  <view class="gantt-body">
+
+    <!-- 左侧冻结列：活动名称 -->
+    <view class="frozen-col">
+      <view class="frozen-header">活动</view>
+      <view
+        class="frozen-row"
+        wx:for="{{activities}}"
+        wx:key="id"
+        style="height:{{gridRowHeight}}rpx;"
+      >
+        <view class="frozen-cell">
+          <text class="label-unit">{{item.activityUnit}}</text>
+          <text class="label-date">{{item.activityDateStr}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 右侧可横向滚动区域 -->
+    <scroll-view
+      scroll-x
+      class="gantt-scroll-x"
+      enhanced
+    >
+      <view class="gantt-scroll-inner" style="width:{{timeGridWidth}}rpx;">
+        <!-- 小时表头 -->
+        <view class="hour-header">
+          <view
+            class="hour-cell"
+            wx:for="{{hourSlots}}"
+            wx:key="hour"
+          >
+            <text class="hour-label">{{item.label}}</text>
+          </view>
+        </view>
+
+        <!-- 活动行 -->
+        <view
+          class="gantt-row"
+          wx:for="{{activities}}"
+          wx:key="id"
+          bindtap="goDetail"
+          data-id="{{item.id}}"
+          style="height:{{gridRowHeight}}rpx;"
+        >
+          <!-- 小时网格背景 -->
+          <view class="hour-cells">
+            <view
+              class="hour-cell-bg"
+              wx:for="{{hourSlots}}"
+              wx:key="hour"
+            />
+
+            <!-- 各环节进度条 -->
+            <view
+              class="step-bar"
+              wx:for="{{item.stepsForGantt}}"
+              wx:for-item="step"
+              wx:key="id"
+              style="left:{{step.barLeft}}rpx; top:{{step.barTop}}rpx; width:{{step.barWidth}}rpx; background:{{step.bgColor}}; color:{{step.textColor}}; border:1rpx solid {{step.borderColor}};"
+            >
+              <text class="step-label">{{step.stepName}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+  </view>
+
+  <!-- 图例 -->
+  <view class="legend-bar">
+    <view class="legend-item"><view class="legend-dot pending" /><text>待完成</text></view>
+    <view class="legend-item"><view class="legend-dot doing" /><text>进行中</text></view>
+    <view class="legend-item"><view class="legend-dot done" /><text>已完成</text></view>
+  </view>
+
+</view>

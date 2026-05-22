@@ -1,0 +1,261 @@
+<!-- pages/activity-detail/activity-detail.wxml -->
+<view class="detail-page">
+
+  <!-- 顶部操作栏 -->
+  <view class="action-bar" wx:if="{{canEdit || canDelete}}">
+    <view class="action-item" bindtap="goEdit" wx:if="{{canEdit}}">
+      <text class="action-icon">✏️</text><text>编辑</text>
+    </view>
+    <view class="action-item danger" bindtap="confirmDelete" wx:if="{{isAdmin}}">
+      <text class="action-icon">🗑</text><text>删除</text>
+    </view>
+    <view class="action-item" bindtap="showNotification">
+      <text class="action-icon">🔔</text><text>通知</text>
+    </view>
+    <view class="action-item" bindtap="goExport" wx:if="{{canExport}}">
+      <text class="action-icon">📤</text><text>导出</text>
+    </view>
+  </view>
+
+  <scroll-view scroll-y class="detail-scroll">
+
+    <!-- ===== 基本信息 ===== -->
+    <view class="card section-card">
+      <view class="section-header">
+        <text class="section-title">活动基本信息</text>
+        <view class="tag {{activity.statusClass}}">{{activity.statusLabel}}</view>
+      </view>
+
+      <view class="info-grid">
+        <view class="info-item">
+          <text class="info-label">活动时间</text>
+          <text class="info-value highlight-check {{activity._dateChanged ? 'revision-changed' : ''}}">
+            {{activity.activityDate}}
+          </text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">活动单位</text>
+          <text class="info-value {{activity._unitChanged ? 'revision-changed' : ''}}">{{activity.activityUnit}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">活动地点</text>
+          <text class="info-value {{activity._venueChanged ? 'revision-changed' : ''}}">{{activity.venue}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">活动人数</text>
+          <text class="info-value">{{activity.peopleCount}} 人</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">业务体现</text>
+          <text class="info-value">{{activity.businessType}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">场地使用</text>
+          <text class="info-value">{{activity.venueUsage}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">结算方式</text>
+          <text class="info-value">{{activity.settlementMethod}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">费用合计</text>
+          <text class="info-value price-text">¥{{activity.totalCost}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">活动对接人</text>
+          <text class="info-value">{{activity.contactPerson}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">活动预订人</text>
+          <text class="info-value">{{activity.bookingPerson}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 活动流程环节 ===== -->
+    <view class="card section-card">
+      <view class="section-header">
+        <text class="section-title">活动流程</text>
+        <text class="section-sub">{{doneSteps}}/{{totalSteps}} 已完成</text>
+      </view>
+
+      <!-- 进度条 -->
+      <view class="progress-bar-bg">
+        <view class="progress-bar-fill" style="width: {{progressPct}}%;" />
+      </view>
+
+      <view class="step-list">
+        <view
+          class="step-item {{step.completedAt ? 'step-done' : 'step-pending'}}"
+          wx:for="{{activity.steps}}"
+          wx:for-item="step"
+          wx:key="id"
+        >
+          <view class="step-index-wrap {{step.completedAt ? 'done' : 'pending'}}">
+            <text class="step-index">{{index + 1}}</text>
+          </view>
+          <view class="step-body">
+            <view class="step-name-row">
+              <text class="step-name">{{step.stepName}}</text>
+              <text class="step-time-range">{{step.startTime}}~{{step.endTime}}</text>
+            </view>
+            <view class="step-owner-row">
+              <text class="step-owner">负责人：{{step.ownerName || '未指派'}}</text>
+              <view class="step-status-tag {{step.completedAt ? 'done' : 'pending'}}">
+                <text wx:if="{{step.completedAt}}">✓ 已完成</text>
+                <text wx:else>进行中</text>
+              </view>
+            </view>
+            <text wx:if="{{step.completedAt}}" class="step-done-time">
+              完成时间：{{step.completedAtStr}}
+            </text>
+            <!-- 负责人确认按钮 -->
+            <button
+              class="btn-confirm-step"
+              wx:if="{{!step.completedAt && step.isCurrentUserOwner}}"
+              data-step-id="{{step.id}}"
+              bindtap="confirmStepDone"
+            >确认完成</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 客户信息 ===== -->
+    <view class="card section-card">
+      <view class="section-header">
+        <text class="section-title">客户特殊关注信息</text>
+        <text class="warn-tag">⚠ 重要</text>
+      </view>
+      <view class="info-grid">
+        <view class="info-item">
+          <text class="info-label">民族 / 宗教</text>
+          <text class="info-value">{{activity.clientInfo.ethnicity || '—'}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">年龄</text>
+          <text class="info-value">{{activity.clientInfo.age || '—'}}</text>
+        </view>
+        <view class="info-item full-width">
+          <text class="info-label">食物禁忌</text>
+          <text class="info-value">{{activity.clientInfo.dietaryRestrictions || '—'}}</text>
+        </view>
+        <view class="info-item full-width">
+          <text class="info-label">重要接待需求</text>
+          <text class="info-value">{{activity.clientInfo.specialRequirements || '—'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 场地需求 ===== -->
+    <view class="card section-card">
+      <text class="section-title">场地需求</text>
+      <view class="requirement-grid">
+        <view class="req-item {{activity.venueNeeds.build ? 'active' : ''}}">
+          <text class="req-icon">🏗</text>
+          <text>搭建</text>
+        </view>
+        <view class="req-item {{activity.venueNeeds.rehearsal ? 'active' : ''}}">
+          <text class="req-icon">🎭</text>
+          <text>预演</text>
+        </view>
+        <view class="req-item {{activity.venueNeeds.power ? 'active' : ''}}">
+          <text class="req-icon">⚡</text>
+          <text>接电</text>
+        </view>
+        <view class="req-item {{activity.venueNeeds.mainVisual ? 'active' : ''}}">
+          <text class="req-icon">🖼</text>
+          <text>主视觉</text>
+        </view>
+        <view class="req-item {{activity.venueNeeds.filming ? 'active' : ''}}">
+          <text class="req-icon">🎬</text>
+          <text>拍摄/直播</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 发票与香囊账户 ===== -->
+    <view class="card section-card">
+      <text class="section-title">发票 & 香囊账户</text>
+      <view class="info-grid">
+        <view class="info-item full-width">
+          <text class="info-label">发票需求</text>
+          <text class="info-value">{{activity.invoiceNeeds || '—'}}</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">香囊账户</text>
+          <view class="sachet-tag {{activity.sachetAccount === 'clinic' ? 'clinic' : 'shop'}}">
+            <text wx:if="{{activity.sachetAccount === 'clinic'}}">⚠️ 医馆账户</text>
+            <text wx:elif="{{activity.sachetAccount === 'shop'}}">⚠️ 零号店账户</text>
+            <text wx:else>未确认</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 凭证管理 ===== -->
+    <view class="card section-card">
+      <text class="section-title">凭证管理</text>
+      <view class="voucher-section">
+        <view class="voucher-block" wx:for="{{voucherTypes}}" wx:key="type">
+          <view class="voucher-block-header">
+            <text class="voucher-type-name">{{item.label}}</text>
+            <view class="voucher-status {{item.uploaded ? 'uploaded' : 'missing'}}">
+              <text>{{item.uploaded ? '已上传' : '未上传'}}</text>
+            </view>
+          </view>
+          <view wx:if="{{item.uploaded}}" class="voucher-preview">
+            <image src="{{item.fileID}}" mode="aspectFit" class="voucher-img" bindtap="previewVoucher" data-file-id="{{item.fileID}}" />
+            <text class="voucher-upload-time">{{item.uploadTime}}</text>
+            <view class="voucher-actions" wx:if="{{canUploadVoucher}}">
+              <text class="btn-delete-voucher" data-voucher-id="{{item.voucherId}}" catchtap="deleteVoucher">删除</text>
+            </view>
+          </view>
+          <button
+            class="btn-upload"
+            wx:if="{{!item.uploaded && canUploadVoucher}}"
+            data-voucher-type="{{item.type}}"
+            bindtap="uploadVoucher"
+          >点击上传</button>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 修订日志 ===== -->
+    <view class="card section-card">
+      <view class="section-header">
+        <text class="section-title">修订日志</text>
+        <text class="section-sub">共 {{revisions.length}} 条</text>
+      </view>
+
+      <view class="revision-list">
+        <view wx:if="{{revisions.length === 0}}" class="empty-state">
+          <text>暂无修订记录</text>
+        </view>
+        <view
+          class="log-item"
+          wx:for="{{revisions}}"
+          wx:key="id"
+        >
+          <view class="log-meta">
+            <text class="log-user">{{item.operatorName}}</text>
+            <text class="log-time">{{item.createdAtStr}}</text>
+          </view>
+          <view class="log-content">
+            <view wx:for="{{item.changes}}" wx:for-item="change" wx:key="field">
+              <text class="change-field">【{{change.field}}】</text>
+              <text class="revision-removed">{{change.oldVal}}</text>
+              <text class="change-arrow"> → </text>
+              <text class="revision-added">{{change.newVal}}</text>
+            </view>
+            <text wx:if="{{item.type === 'step_confirm'}}">
+              <text class="revision-added">环节「{{item.stepName}}」由 {{item.operatorName}} 确认完成</text>
+            </text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+  </scroll-view>
+
+</view>

@@ -1,0 +1,72 @@
+<!-- subpackages/admin/pages/notification-config/notification-config.wxml -->
+<view class="notif-page">
+  <scroll-view scroll-y class="notif-scroll">
+
+    <view class="tip-banner">
+      <text>配置活动的自动定时提醒，推送给指定人员或部门群组。</text>
+    </view>
+
+    <view class="card">
+      <text class="section-title">全局提醒规则</text>
+
+      <view class="rule-list">
+        <view class="rule-item" wx:for="{{rules}}" wx:key="id">
+          <view class="rule-header">
+            <text class="rule-title">规则 {{index + 1}}</text>
+            <view class="rule-del" bindtap="deleteRule" data-index="{{index}}">删除</view>
+          </view>
+
+          <!-- 提醒时机 -->
+          <view class="form-item">
+            <text class="form-label">提醒时机</text>
+            <picker mode="selector" range="{{timingOptions}}" value="{{item.timingIndex}}"
+              bindchange="onTimingChange" data-index="{{index}}">
+              <view class="form-input picker-value">{{timingOptions[item.timingIndex]}}</view>
+            </picker>
+          </view>
+
+          <!-- 提前/延后分钟 -->
+          <view class="form-item">
+            <text class="form-label">{{item.timingIndex === 0 ? '提前' : '延后'}}分钟</text>
+            <input class="form-input" type="number" value="{{item.minutes}}"
+              bindinput="onMinutesInput" data-index="{{index}}" placeholder="30" />
+          </view>
+
+          <!-- 目标类型 -->
+          <view class="form-item">
+            <text class="form-label">通知对象</text>
+            <picker mode="selector" range="{{['指定人员', '部门群组']}}" value="{{item.targetTypeIndex}}"
+              bindchange="onTargetTypeChange" data-index="{{index}}">
+              <view class="form-input picker-value">{{item.targetTypeIndex === 0 ? '指定人员' : '部门群组'}}</view>
+            </picker>
+          </view>
+
+          <!-- 目标选择 -->
+          <view class="form-item">
+            <text class="form-label">选择{{item.targetTypeIndex === 0 ? '人员' : '群组'}}</text>
+            <view class="target-chips">
+              <view class="target-chip" wx:for="{{item.targets}}" wx:for-item="t" wx:key="id">
+                <text>{{t.name}}</text>
+                <text class="chip-del" bindtap="removeTarget"
+                  data-rule-index="{{index}}" data-target-id="{{t.id}}">×</text>
+              </view>
+              <view class="target-chip add" bindtap="addTarget" data-rule-index="{{index}}">
+                <text>＋ 添加</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="add-rule-btn" bindtap="addRule">
+        <text>＋ 添加提醒规则</text>
+      </view>
+    </view>
+
+    <button class="btn-primary save-btn" bindtap="saveRules" loading="{{saving}}">
+      保存配置
+    </button>
+
+    <view style="height: 60rpx;" />
+  </scroll-view>
+</view>

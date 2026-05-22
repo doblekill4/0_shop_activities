@@ -1,0 +1,12 @@
+/* pages/activity-edit/activity-edit.wxss */
+@import '../activity-create/activity-create.wxss';
+
+.edit-banner {
+  background: #E3F2FD;
+  border-left: 6rpx solid #1976D2;
+  padding: 20rpx 24rpx;
+  margin: 16rpx 24rpx;
+  border-radius: 8rpx;
+}
+
+.edit-banner-text { font-size: 24rpx; color: #1565C0; line-height: 1.6; }

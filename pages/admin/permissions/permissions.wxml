@@ -1,0 +1,46 @@
+<!-- pages/admin/permissions/permissions.wxml -->
+<view class="admin-page">
+  <scroll-view scroll-y class="admin-scroll">
+
+    <view class="tip-banner">
+      <text>权限组决定每个成员可以执行的操作，修改后立即生效。</text>
+    </view>
+
+    <!-- 权限组列表 -->
+    <view class="card group-card" wx:for="{{groups}}" wx:key="id">
+      <view class="group-header">
+        <view class="group-info">
+          <text class="group-name">{{item.name}}</text>
+          <text class="group-count">{{item.permissions.length}} 项权限</text>
+        </view>
+        <view class="group-actions">
+          <view class="action-btn" bindtap="editGroup" data-id="{{item.id}}">编辑</view>
+          <view class="action-btn danger" bindtap="deleteGroup" data-id="{{item.id}}">删除</view>
+        </view>
+      </view>
+
+      <!-- 权限列表 -->
+      <view class="perm-list">
+        <view
+          class="perm-toggle {{perm.enabled ? 'on' : 'off'}}"
+          wx:for="{{item.permissions}}"
+          wx:for-item="perm"
+          wx:key="key"
+          bindtap="togglePerm"
+          data-group-id="{{item.id}}"
+          data-perm-key="{{perm.key}}"
+        >
+          <text class="perm-name">{{perm.label}}</text>
+          <view class="toggle-switch {{perm.enabled ? 'on' : ''}}">
+            <view class="toggle-thumb" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="add-group-btn" bindtap="addGroup">
+      <text>＋ 新建权限组</text>
+    </view>
+
+  </scroll-view>
+</view>

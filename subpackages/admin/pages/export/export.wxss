@@ -1,0 +1,73 @@
+/* subpackages/admin/pages/export/export.wxss */
+.export-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.export-scroll { flex: 1; }
+
+.card { margin: 16rpx 24rpx; background: #fff; border-radius: 16rpx; padding: 24rpx 28rpx; }
+
+.section-title { font-size: 30rpx; font-weight: 700; color: #222; margin-bottom: 20rpx; display: block; }
+
+/* 格式选项 */
+.format-list { display: flex; flex-direction: column; gap: 16rpx; }
+
+.format-opt {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx;
+  border: 2rpx solid #eee;
+  border-radius: 12rpx;
+  background: #fafafa;
+}
+
+.format-opt.selected { border-color: #2E7D32; background: #E8F5E9; }
+.format-icon { font-size: 48rpx; }
+.format-name { font-size: 28rpx; font-weight: 600; color: #333; display: block; }
+.format-desc { font-size: 22rpx; color: #888; display: block; margin-top: 4rpx; }
+
+/* 全选 */
+.select-all-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+  margin-bottom: 8rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  font-size: 26rpx;
+  color: #333;
+}
+
+.activity-select-list { display: flex; flex-direction: column; max-height: 500rpx; overflow-y: auto; }
+
+.activity-select-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.select-info { display: flex; flex-direction: column; gap: 4rpx; }
+.select-unit { font-size: 26rpx; color: #333; }
+.select-date { font-size: 22rpx; color: #888; }
+
+/* 预览 */
+.preview-text {
+  font-size: 22rpx;
+  color: #555;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: monospace;
+}
+
+.export-btn {
+  margin: 8rpx 24rpx;
+  padding: 28rpx 0;
+  width: calc(100% - 48rpx);
+}

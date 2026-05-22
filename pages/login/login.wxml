@@ -1,0 +1,48 @@
+<!-- pages/login/login.wxml（云开发版） -->
+<view class="login-page">
+  <view class="logo-area">
+    <image class="logo" src="/assets/images/logo.png" mode="aspectFit" />
+    <text class="app-name">知嘛健康零号店</text>
+    <text class="app-sub">活动预定管理系统</text>
+  </view>
+
+  <view class="login-card card">
+    <text class="login-title">欢迎登录</text>
+    <text class="login-desc">使用微信账号快速登录，开始管理活动</text>
+
+    <!-- 注册表单（新用户需要填写） -->
+    <view wx:if="{{needsRegister}}" class="register-form">
+      <view class="form-item">
+        <text class="label">姓名</text>
+        <input
+          class="input"
+          placeholder="请输入您的姓名"
+          value="{{name}}"
+          bindinput="onNameInput"
+        />
+      </view>
+      <view class="form-item">
+        <text class="label">部门</text>
+        <input
+          class="input"
+          placeholder="请输入您的部门"
+          value="{{department}}"
+          bindinput="onDeptInput"
+        />
+      </view>
+    </view>
+
+    <button
+      class="btn-wechat"
+      bindtap="handleLogin"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+    >
+      <text class="btn-wechat-text">
+        {{needsRegister ? '注册并登录' : '微信一键登录'}}
+      </text>
+    </button>
+
+    <text class="login-tip">登录即表示同意《用户服务协议》和《隐私政策》</text>
+  </view>
+</view>

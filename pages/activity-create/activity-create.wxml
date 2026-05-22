@@ -1,0 +1,275 @@
+<!-- pages/activity-create/activity-create.wxml -->
+<!-- 活动创建页（复用 activity-form 组件） -->
+<view class="create-page">
+  <scroll-view scroll-y class="form-scroll">
+
+    <!-- 提示横幅 -->
+    <view class="banner-tip">
+      <text class="tip-icon">⚠️</text>
+      <text class="tip-text">上传订金凭证后，活动才会进入公共列表（正式活动）</text>
+    </view>
+
+    <!-- ========== 基本信息 ========== -->
+    <view class="card form-section">
+      <text class="section-title">基本信息</text>
+
+      <view class="form-item">
+        <text class="form-label required">活动时间</text>
+        <picker mode="date" value="{{form.activityDate}}" bindchange="onDateChange">
+          <view class="form-input picker-value {{!form.activityDate ? 'placeholder' : ''}}">
+            {{form.activityDate || '请选择日期'}}
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label required">活动单位</text>
+        <input class="form-input" placeholder="如：XXXX公司" value="{{form.activityUnit}}"
+          bindinput="onInput" data-field="activityUnit" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label required">活动地点</text>
+        <input class="form-input" placeholder="如：零号店1-3层、直播基地..."
+          value="{{form.venue}}" bindinput="onInput" data-field="venue" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label required">活动人数</text>
+        <input class="form-input" type="number" placeholder="请输入人数"
+          value="{{form.peopleCount}}" bindinput="onInput" data-field="peopleCount" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">业务体现</text>
+        <input class="form-input" placeholder="如：58元品鉴、伴手礼、用餐"
+          value="{{form.businessType}}" bindinput="onInput" data-field="businessType" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">场地使用</text>
+        <textarea class="form-input form-textarea" placeholder="如：一楼报告厅/三楼调剂台/5层会议室..."
+          value="{{form.venueUsage}}" bindinput="onInput" data-field="venueUsage" auto-height />
+      </view>
+    </view>
+
+    <!-- ========== 活动流程环节 ========== -->
+    <view class="card form-section step-section">
+      <view class="section-header">
+        <text class="section-title">活动流程</text>
+      </view>
+
+      <view class="step-form-list">
+        <view class="step-form-item" wx:for="{{form.steps}}" wx:key="tempId">
+          <view class="step-form-header">
+            <text class="step-form-num">环节 {{index + 1}}</text>
+            <view class="step-remove" bindtap="removeStep" data-index="{{index}}">✕</view>
+          </view>
+
+          <view class="step-row">
+            <view class="form-item flex-1">
+              <text class="form-label required">环节名称</text>
+              <input class="form-input" placeholder="如：参观品鉴"
+                value="{{item.stepName}}" bindinput="onStepInput"
+                data-index="{{index}}" data-field="stepName" />
+            </view>
+          </view>
+
+          <view class="step-time-row">
+            <view class="form-item flex-half">
+              <text class="form-label">开始时间</text>
+              <view class="form-input picker-value {{!item.startTime ? 'placeholder' : ''}}"
+                bindtap="openTimePicker"
+                data-index="{{index}}" data-field="startTime">
+                {{item.startTime || '09:00'}}
+              </view>
+            </view>
+            <view class="step-time-sep">~</view>
+            <view class="form-item flex-half">
+              <text class="form-label">结束时间</text>
+              <view class="form-input picker-value {{!item.endTime ? 'placeholder' : ''}}"
+                bindtap="openTimePicker"
+                data-index="{{index}}" data-field="endTime">
+                {{item.endTime || '10:00'}}
+              </view>
+            </view>
+          </view>
+
+          <view class="form-item">
+            <text class="form-label">负责人</text>
+            <picker mode="selector" range="{{userList}}" range-key="name"
+              value="{{item.ownerIndex}}" bindchange="onStepOwnerChange"
+              data-index="{{index}}">
+              <view class="form-input picker-value">
+                {{item.ownerName || '请选择负责人'}}
+              </view>
+            </picker>
+          </view>
+        </view>
+      </view>
+
+      <!-- 步骤为空时的提示 -->
+      <view wx:if="{{form.steps.length === 0}}" class="step-empty-tip">
+        <text>暂无环节，点击上方「＋ 添加环节」开始</text>
+      </view>
+    </view>
+
+    <!-- ========== 结算信息 ========== -->
+    <view class="card form-section">
+      <text class="section-title">结算信息</text>
+      <view class="form-item">
+        <text class="form-label">结算方式</text>
+        <input class="form-input" placeholder="如：对公转账 / 现金"
+          value="{{form.settlementMethod}}" bindinput="onInput" data-field="settlementMethod" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">费用合计（元）</text>
+        <input class="form-input" type="digit" placeholder="0.00"
+          value="{{form.totalCost}}" bindinput="onInput" data-field="totalCost" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">活动对接人</text>
+        <input class="form-input" placeholder="请填写对接人姓名"
+          value="{{form.contactPerson}}" bindinput="onInput" data-field="contactPerson" />
+      </view>
+      <view class="form-item">
+        <text class="form-label required">活动预订人</text>
+        <input class="form-input" placeholder="请填写预订人姓名"
+          value="{{form.bookingPerson}}" bindinput="onInput" data-field="bookingPerson" />
+      </view>
+    </view>
+
+    <!-- ========== 客户特殊关注 ========== -->
+    <view class="card form-section">
+      <view class="section-header">
+        <text class="section-title">客户特殊关注信息</text>
+        <text class="warn-tag">⚠ 重要</text>
+      </view>
+      <view class="form-item">
+        <text class="form-label">民族 / 宗教信仰</text>
+        <input class="form-input" placeholder="如：汉族 / 无"
+          value="{{form.clientInfo.ethnicity}}" bindinput="onClientInput" data-field="ethnicity" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">年龄</text>
+        <input class="form-input" placeholder="如：35岁"
+          value="{{form.clientInfo.age}}" bindinput="onClientInput" data-field="age" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">食物禁忌</text>
+        <textarea class="form-input form-textarea" placeholder="如：不吃牛羊肉"
+          value="{{form.clientInfo.dietaryRestrictions}}" bindinput="onClientInput"
+          data-field="dietaryRestrictions" auto-height />
+      </view>
+      <view class="form-item">
+        <text class="form-label">重要客人接待需求</text>
+        <textarea class="form-input form-textarea" placeholder="请填写特殊接待要求"
+          value="{{form.clientInfo.specialRequirements}}" bindinput="onClientInput"
+          data-field="specialRequirements" auto-height />
+      </view>
+    </view>
+
+    <!-- ========== 场地需求 ========== -->
+    <view class="card form-section">
+      <text class="section-title">场地需求</text>
+      <view class="need-toggle-grid">
+        <view class="need-toggle {{form.venueNeeds.build ? 'active' : ''}}"
+          bindtap="toggleNeed" data-field="build">
+          <text class="need-icon">🏗</text>
+          <text>搭建</text>
+        </view>
+        <view class="need-toggle {{form.venueNeeds.rehearsal ? 'active' : ''}}"
+          bindtap="toggleNeed" data-field="rehearsal">
+          <text class="need-icon">🎭</text>
+          <text>预演</text>
+        </view>
+        <view class="need-toggle {{form.venueNeeds.power ? 'active' : ''}}"
+          bindtap="toggleNeed" data-field="power">
+          <text class="need-icon">⚡</text>
+          <text>接电</text>
+        </view>
+        <view class="need-toggle {{form.venueNeeds.mainVisual ? 'active' : ''}}"
+          bindtap="toggleNeed" data-field="mainVisual">
+          <text class="need-icon">🖼</text>
+          <text>主视觉</text>
+        </view>
+        <view class="need-toggle {{form.venueNeeds.filming ? 'active' : ''}}"
+          bindtap="toggleNeed" data-field="filming">
+          <text class="need-icon">🎬</text>
+          <text>拍摄/直播</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 发票需求 ========== -->
+    <view class="card form-section">
+      <text class="section-title">发票需求</text>
+      <view class="form-item">
+        <text class="form-label">发票特殊需求</text>
+        <textarea class="form-input form-textarea"
+          placeholder="秉承实报实销原则，特殊需求请提前说明..."
+          value="{{form.invoiceNeeds}}" bindinput="onInput" data-field="invoiceNeeds" auto-height />
+      </view>
+    </view>
+
+    <!-- ========== 香囊账户确认 ========== -->
+    <view class="card form-section sachet-section">
+      <view class="section-header">
+        <text class="section-title">香囊账户确认</text>
+        <text class="warn-tag">⚠⚠ 务必预订前确认！</text>
+      </view>
+      <view class="sachet-choice">
+        <view
+          class="sachet-opt {{form.sachetAccount === 'clinic' ? 'selected clinic' : ''}}"
+          bindtap="setSachet" data-val="clinic"
+        >
+          <text class="sachet-opt-icon">🏥</text>
+          <text class="sachet-opt-label">医馆账户</text>
+        </view>
+        <view
+          class="sachet-opt {{form.sachetAccount === 'shop' ? 'selected shop' : ''}}"
+          bindtap="setSachet" data-val="shop"
+        >
+          <text class="sachet-opt-icon">🏪</text>
+          <text class="sachet-opt-label">零号店账户</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="bottom-actions">
+      <button class="btn-secondary flex-1" bindtap="saveDraft" loading="{{saving}}">存为草稿</button>
+      <button class="btn-primary flex-2" bindtap="submitActivity" loading="{{submitting}}">提交活动</button>
+    </view>
+
+    <view style="height: 120rpx;" />
+  </scroll-view>
+
+  <!-- 悬浮添加环节按钮 -->
+  <view class="fab-add-step" bindtap="addStep">
+    <text class="fab-icon">＋</text>
+  </view>
+
+  <!-- 自定义时间选择弹窗 -->
+  <view class="time-picker-mask" wx:if="{{showTimePicker}}" bindtap="closeTimePicker">
+    <view class="time-picker-popup" catchtap="">
+      <view class="time-picker-header">
+        <view class="time-picker-cancel" bindtap="closeTimePicker">取消</view>
+        <view class="time-picker-confirm" bindtap="confirmTimePicker">确定</view>
+      </view>
+      <view class="time-picker-body">
+        <picker-view class="time-picker-col" value="{{timePickerValue}}" bindchange="onTimePickerChange">
+          <picker-view-column>
+            <view class="time-picker-item" wx:for="{{timeHours}}" wx:key="*this">{{item}} 时</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view class="time-picker-item" wx:for="{{timeMinutes}}" wx:key="*this">{{item}} 分</view>
+          </picker-view-column>
+        </picker-view>
+        <view class="time-picker-indicator" />
+      </view>
+    </view>
+  </view>
+
+  <register-dialog visible="{{showRegister}}" bind:success="onRegisterSuccess" />
+</view>

@@ -1,0 +1,185 @@
+/* app.wxss - 全局样式 */
+page {
+  font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 28rpx;
+  color: #333333;
+  background-color: #f5f5f5;
+  box-sizing: border-box;
+}
+
+/* ==================== 颜色变量（通过 class 模拟）==================== */
+.color-primary    { color: #2E7D32; }
+.color-secondary  { color: #4CAF50; }
+.color-danger     { color: #D32F2F; }
+.color-warning    { color: #F57C00; }
+.color-info       { color: #1976D2; }
+.color-text       { color: #333333; }
+.color-sub        { color: #999999; }
+.color-white      { color: #ffffff; }
+
+.bg-primary   { background-color: #2E7D32; }
+.bg-success   { background-color: #E8F5E9; }
+.bg-danger    { background-color: #FFEBEE; }
+.bg-warning   { background-color: #FFF3E0; }
+.bg-info      { background-color: #E3F2FD; }
+.bg-white     { background-color: #ffffff; }
+.bg-gray      { background-color: #f5f5f5; }
+
+/* ==================== 修订高亮 ==================== */
+.revision-added   { background-color: #C8E6C9; color: #1B5E20; border-radius: 4rpx; padding: 0 4rpx; }
+.revision-removed { background-color: #FFCDD2; color: #B71C1C; text-decoration: line-through; border-radius: 4rpx; padding: 0 4rpx; }
+.revision-changed { background-color: #FFF9C4; color: #F57F17; border-radius: 4rpx; padding: 0 4rpx; }
+
+/* ==================== 通用卡片 ==================== */
+.card {
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  margin: 16rpx 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 16rpx;
+}
+
+/* ==================== 状态标签 ==================== */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.tag-pending    { background: #FFF3E0; color: #E65100; }
+.tag-active     { background: #E8F5E9; color: #2E7D32; }
+.tag-completed  { background: #E3F2FD; color: #1565C0; }
+.tag-draft      { background: #F3E5F5; color: #6A1B9A; }
+
+/* ==================== 环节状态 ==================== */
+.step-status-todo     { color: #999999; }
+.step-status-doing    { color: #F57C00; }
+.step-status-done     { color: #2E7D32; }
+
+/* ==================== 按钮 ==================== */
+.btn-primary {
+  background-color: #2E7D32;
+  color: #ffffff;
+  border-radius: 12rpx;
+  padding: 20rpx 40rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: #2E7D32;
+  border: 2rpx solid #2E7D32;
+  border-radius: 12rpx;
+  padding: 20rpx 40rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  text-align: center;
+}
+
+.btn-danger {
+  background-color: #D32F2F;
+  color: #ffffff;
+  border-radius: 12rpx;
+  padding: 20rpx 40rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+}
+
+/* ==================== 分割线 ==================== */
+.divider {
+  height: 1rpx;
+  background-color: #eeeeee;
+  margin: 16rpx 0;
+}
+
+/* ==================== 表单 ==================== */
+.form-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24rpx;
+}
+
+.form-label {
+  font-size: 26rpx;
+  color: #666666;
+  margin-bottom: 8rpx;
+}
+
+.form-label.required::before {
+  content: '* ';
+  color: #D32F2F;
+}
+
+.form-input {
+  background-color: #f9f9f9;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 10rpx;
+  padding: 18rpx 20rpx;
+  font-size: 28rpx;
+  color: #333333;
+  min-height: 80rpx;
+}
+
+.form-input:focus {
+  border-color: #2E7D32;
+}
+
+/* ==================== 空状态 ==================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 40rpx;
+  color: #cccccc;
+}
+
+.empty-state text {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+}
+
+/* ==================== 加载态 ==================== */
+.loading-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60rpx;
+}
+
+/* ==================== 凭证状态 ==================== */
+.voucher-status-uploaded   { color: #2E7D32; }
+.voucher-status-missing    { color: #D32F2F; }
+
+/* ==================== 修订日志条目 ==================== */
+.log-item {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.log-meta {
+  font-size: 22rpx;
+  color: #999999;
+  margin-bottom: 8rpx;
+}
+
+.log-content {
+  font-size: 26rpx;
+  color: #333333;
+  line-height: 1.6;
+}

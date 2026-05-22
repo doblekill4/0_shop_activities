@@ -1,0 +1,23 @@
+/* pages/admin/departments/departments.wxss */
+@import '../permissions/permissions.wxss';
+
+.member-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.member-chip {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+}
+
+.member-chip.add {
+  background: #f5f5f5;
+  color: #888;
+  border: 1rpx dashed #ccc;
+}
