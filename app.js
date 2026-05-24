@@ -21,8 +21,8 @@ App({
     this.initLocalStorage();
     // 初始化全局状态
     initStore();
-    // 不再自动登录：由登录页手动触发，避免云函数超时阻塞启动
-    this.globalData.loginReady = true;
+    // 自动登录（加超时保护，避免云函数超时阻塞启动）
+    this._doAutoLogin();
   },
 
   onShow(options) {
@@ -42,6 +42,42 @@ App({
     if (!wx.getStorageSync('draft_activities')) {
       wx.setStorageSync('draft_activities', []);
     }
+  },
+
+  // 自动登录（带超时保护，避免阻塞启动）
+  _doAutoLogin() {
+    const self = this;
+    let finished = false;
+
+    // 超时保护：5 秒后强制结束，避免永远卡在启动页
+    const timer = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        console.warn('[App] autoLogin 超时，进入登录页');
+        self.globalData.loginReady = true;
+      }
+    }, 5000);
+
+    const { autoLogin } = require('./utils/auth');
+    autoLogin().then(user => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      if (user) {
+        self.globalData.isLoggedIn = true;
+        self.globalData.userInfo = user;
+        console.log('[App] autoLogin 成功：', user.name);
+      } else {
+        console.log('[App] autoLogin：未登录，需要手动登录');
+      }
+      self.globalData.loginReady = true;
+    }).catch(err => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      console.warn('[App] autoLogin 失败（非致命）：', err);
+      self.globalData.loginReady = true;
+    });
   },
 
   globalData: {
