@@ -75,12 +75,12 @@ const uploadVoucher = (activityId, type, filePath) => {
 };
 
 /**
- * 删除凭证（仅上传者 / 管理员）
+ * 删除凭证（传 voucherId，与云函数 deleteVoucher 参数名一致）
  * @param {string} activityId - 活动 ID
- * @param {string} fileID     - 要删除的凭证 fileID（与 vouchers 数组里的 fileID 字段匹配）
+ * @param {string} voucherId  - 凭证 _id（云函数用它匹配 vouchers 数组）
  */
-const deleteVoucher = (activityId, fileID) => {
-  return callCloudFunc('activities', { action: 'deleteVoucher', activityId, fileID });
+const deleteVoucher = (activityId, voucherId) => {
+  return callCloudFunc('activities', { action: 'deleteVoucher', activityId, voucherId });
 };
 
 /**
