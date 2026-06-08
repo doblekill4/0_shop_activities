@@ -8,9 +8,8 @@ const buildTextTemplate = (a) => {
     `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}`
   ).join('\n');
 
-  return `================================
-按照活动模板填写：
-时间：${a.activityDate}
+  return `按照活动模板填写：
+时间：${a.activityDate}${a.arrivalTime ? ' ' + a.arrivalTime : ''}
 活动单位：${a.activityUnit}
 活动地点：${a.venue}
 活动人数：${a.peopleCount}人
@@ -36,8 +35,7 @@ ${steps}
 5.是否有现场拍摄/直播：${(a.venueNeeds||{}).filming ? '是' : '否'}
 
 发票特殊需求：${a.invoiceNeeds || ''}
-香囊账户：${a.sachetAccount === 'clinic' ? '⚠ 医馆账户' : a.sachetAccount === 'shop' ? '⚠ 零号店账户' : '未确认'}
-================================`;
+香囊账户：${a.sachetAccount === 'clinic' ? '⚠ 医馆账户' : a.sachetAccount === 'shop' ? '⚠ 零号店账户' : '未确认'}`;
 };
 
 Page({
@@ -48,26 +46,56 @@ Page({
     selectedCount: 0,
     exporting: false,
     previewText: '',
+    filterDate: '',
   },
 
   async onLoad(options) {
     wx.setNavigationBarTitle({ title: '数据导出' });
+    // 默认筛选今天
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    this.setData({ filterDate: todayStr });
     await this.loadActivities(options.ids);
   },
 
+  onDateChange(e) {
+    this.setData({ filterDate: e.detail.value });
+    this.loadActivities();
+  },
+
+  clearDate() {
+    this.setData({ filterDate: '' });
+    this.loadActivities();
+  },
+
   async loadActivities(preSelectedIds) {
-    const res = await getActivityList({ pageSize: 200 });
-    const list = Array.isArray(res) ? res : ((res && res.data) || []);
-    const preIds = preSelectedIds ? preSelectedIds.split(',') : [];
-    const activities = list.map(a => ({
-      ...a,
-      id: a._id || a.id,
-      activityDate: formatDate(a.activityDate),
-      selected: preIds.includes(a._id || a.id),
-    }));
-    const selectedCount = activities.filter(a => a.selected).length;
-    this.setData({ activities, selectedCount });
-    if (activities.length === 1) this.updatePreview();
+    wx.showLoading({ title: '加载中...' });
+    try {
+      const params = { pageSize: 200 };
+      if (this.data.filterDate) {
+        params.filterDate = this.data.filterDate;
+        params.filterDateMode = 'specific';
+      }
+      const res = await getActivityList(params);
+      let list;
+      if (Array.isArray(res)) { list = res; }
+      else if (res && Array.isArray(res.list)) { list = res.list; }
+      else if (res && Array.isArray(res.data)) { list = res.data; }
+      else { list = []; }
+      const preIds = preSelectedIds ? preSelectedIds.split(',') : [];
+      const activities = list.map(a => ({
+        ...a,
+        id: a._id || a.id,
+        activityDate: formatDate(a.activityDate),
+        selected: preIds.includes(a._id || a.id),
+      }));
+      const selectedCount = activities.filter(a => a.selected).length;
+      this.setData({ activities, selectedCount });
+      if (activities.length === 1) this.updatePreview();
+    } catch (e) {
+      wx.showToast({ title: '加载失败', icon: 'none' });
+    }
+    wx.hideLoading();
   },
 
   selectFormat(e) {

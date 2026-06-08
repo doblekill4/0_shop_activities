@@ -3,11 +3,13 @@
     "pages/activity-list/activity-list",
     "pages/activity-create/activity-create",
     "pages/activity-detail/activity-detail",
+    "pages/activity-detail/notification-sheet",
     "pages/activity-edit/activity-edit",
     "pages/gantt/gantt",
     "pages/profile/profile",
     "pages/admin/permissions/permissions",
     "pages/admin/departments/departments",
+    "pages/admin/permission-groups/permission-groups",
     "pages/login/login"
   ],
   "subpackages": [

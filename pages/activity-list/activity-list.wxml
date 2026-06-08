@@ -19,6 +19,29 @@
     </view>
   </view>
 
+  <!-- 日期筛选行 -->
+  <view class="date-filter-row">
+    <!-- 四列选择器：年/月/日/模式 -->
+    <picker mode="multiSelector" range="{{multiSelectorRange}}" value="{{multiSelectorValue}}" bindchange="onMultiDateChange" bindcolumnchange="onMultiColumnChange">
+      <view class="date-picker-chip {{filterDateMode ? 'active' : ''}}">
+        <text class="date-chip-icon">📅</text>
+        <text>{{filterDateLabel}}</text>
+        <text wx:if="{{filterDateMode}}" class="date-chip-clear" catchtap="clearDateFilter">✕</text>
+      </view>
+    </picker>
+    <view wx:if="{{filterStatus}}" class="filter-chip active" bindtap="clearStatusFilter">
+      <text>{{filterStatusLabel}}</text>
+      <text class="date-chip-clear">✕</text>
+    </view>
+    <view wx:if="{{filterBooker}}" class="filter-chip active" bindtap="clearBookerFilter">
+      <text>{{filterBooker}}</text>
+      <text class="date-chip-clear">✕</text>
+    </view>
+    <view wx:if="{{filterDateMode || filterStatus || filterBooker}}" class="clear-filter-chip" bindtap="clearAllFilters">
+      <text>清除筛选</text>
+    </view>
+  </view>
+
   <!-- 统计条 -->
   <view class="stat-bar">
     <text class="stat-text">共 {{total}} 个活动</text>
@@ -46,7 +69,7 @@
     <view wx:elif="{{activities.length === 0}}" class="empty-state">
       <text class="empty-icon">📋</text>
       <text>暂无活动</text>
-      <text class="empty-sub">上传订金凭证后活动将出现在这里</text>
+      <text class="empty-sub">点击右上角「＋新建活动」开始</text>
     </view>
 
     <block wx:else>
@@ -65,7 +88,7 @@
           </view>
           <view class="activity-meta">
             <text class="activity-unit">{{item.activityUnit}}</text>
-            <text class="activity-time">{{item.activityDate}} {{item.firstStepTime}}</text>
+            <text class="activity-time">{{item.activityDate}}{{item.arrivalTime ? ' ' + item.arrivalTime : ''}}</text>
           </view>
           <view class="card-right">
             <view class="tag {{item.statusClass}}">{{item.statusLabel}}</view>
@@ -75,26 +98,23 @@
 
         <view class="divider" />
 
-        <!-- 场地与业务 -->
-        <view class="card-body">
-          <view class="info-row">
-            <text class="info-label">📍</text>
-            <text class="info-value">{{item.venue}}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">💼</text>
-            <text class="info-value">{{item.businessType}}</text>
-          </view>
+        <!-- 场地 -->
+        <view class="venue-row">
+          <text class="info-label">📍</text>
+          <text class="info-value">{{item.venue}}</text>
         </view>
 
-        <!-- 环节进度预览 -->
-        <view class="steps-preview" wx:if="{{item.steps && item.steps.length > 0}}">
-          <view
-            class="step-dot {{step.status === 'done' ? 'done' : step.status === 'doing' ? 'doing' : 'todo'}}"
-            wx:for="{{item.steps}}"
-            wx:for-item="step"
-            wx:key="id"
-          />
+        <!-- 活动环节列表（含顺序进度圆点） -->
+        <view class="steps-list" wx:if="{{item.steps && item.steps.length > 0}}">
+          <view class="step-row" wx:for="{{item.steps}}" wx:for-item="step" wx:key="id">
+            <view class="step-progress-dot {{step.status}}"></view>
+            <text class="step-name">{{step.stepName}}</text>
+            <text class="step-time" wx:if="{{step.startTime}}">{{step.startTime}}{{step.endTime ? '~' + step.endTime : ''}}</text>
+          </view>
+        </view>
+        <view class="venue-row" wx:else>
+          <text class="info-label">💼</text>
+          <text class="info-value">{{item.businessType || '暂无环节'}}</text>
         </view>
 
         <!-- 凭证状态 -->
@@ -102,11 +122,11 @@
           <view class="voucher-item {{item.depositVoucher ? 'uploaded' : 'missing'}}">
             <text>{{item.depositVoucher ? '✓' : '✗'}} 订金</text>
           </view>
-          <view class="voucher-item {{item.settlementVoucher ? 'uploaded' : 'missing'}}">
-            <text>{{item.settlementVoucher ? '✓' : '✗'}} 结算</text>
-          </view>
           <view class="voucher-item {{item.billVoucher ? 'uploaded' : 'missing'}}">
             <text>{{item.billVoucher ? '✓' : '✗'}} 账单</text>
+          </view>
+          <view class="voucher-item {{item.settlementVoucher ? 'uploaded' : 'missing'}}">
+            <text>{{item.settlementVoucher ? '✓' : '✗'}} 结算</text>
           </view>
         </view>
 

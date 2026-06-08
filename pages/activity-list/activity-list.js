@@ -9,20 +9,27 @@ Page({
   data: {
     activities: [],
     total: 0,
-    page: 1,
     hasMore: true,
     loading: false,
     refreshing: false,
     searchKey: '',
     activeFilters: 0,
     filterDate: '',
+    filterDateMode: '',  // '' | 'specific' | 'today' | 'todayAndAfter'
+    filterDateLabel: '📅 选择日期',  // picker 显示标签
+    // 四列选择器：年 / 月 / 日 / 模式
+    multiSelectorRange: [[], [], [], []],
+    multiSelectorValue: [0, 0, 0, 0],
     filterStatus: '',
+    filterStatusLabel: '',
     filterBooker: '',
     canCreate: false,
     showRegister: false,
+    timer: null,   // 20秒自动刷新定时器
   },
 
   onLoad() {
+    this._needRefresh = false;
     this._waitForLogin();
   },
 
@@ -34,9 +41,15 @@ Page({
         wx.reLaunch({ url: '/pages/login/login' });
         return;
       } else {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        this._initMultiSelector(today);
         this.setData({
           canCreate: hasPermission('create_activity'),
           showRegister: false,
+          filterDate: todayStr,
+          filterDateMode: 'today',
+          filterDateLabel: '今天',
         });
         this.loadActivities(true);
       }
@@ -51,10 +64,44 @@ Page({
       wx.reLaunch({ url: '/pages/login/login' });
       return;
     }
+    // 日历页面跳转过来的日期筛选
+    if (app.globalData._calFilterDate) {
+      const d = app.globalData._calFilterDate;
+      const m = app.globalData._calFilterMode || 'specific';
+      app.globalData._calFilterDate = null;
+      app.globalData._calFilterMode = null;
+      this.setData({
+        filterDate: d,
+        filterDateMode: m,
+        filterDateLabel: d,
+      });
+      this._needRefresh = true;
+    }
     // 从详情/编辑页返回时刷新
     if (this._needRefresh) {
       this._needRefresh = false;
       this.loadActivities(true);
+    }
+    // 启动 20 秒自动刷新定时器（避免重复启动）
+    if (!this.data.timer) {
+      const timer = setInterval(() => {
+        this._silentRefresh();
+      }, 60000);
+      this.setData({ timer });
+    }
+  },
+
+  onHide() {
+    if (this.data.timer) {
+      clearInterval(this.data.timer);
+      this.setData({ timer: null });
+    }
+  },
+
+  onUnload() {
+    if (this.data.timer) {
+      clearInterval(this.data.timer);
+      this.setData({ timer: null });
     }
   },
 
@@ -74,40 +121,27 @@ Page({
   onSearchInput(e) {
     this.setData({ searchKey: e.detail.value });
     clearTimeout(this._searchTimer);
-    this._searchTimer = setTimeout(() => this.loadActivities(true), 400);
+    this._searchTimer = setTimeout(() => this._applyFilters(), 300);
   },
 
   toggleFilter() {
     wx.showActionSheet({
-      itemList: ['按日期筛选', '按状态筛选', '按预订人筛选', '清除筛选'],
+      itemList: ['按状态筛选', '按预订人筛选'],
       success: (res) => {
         if (res.tapIndex === 0) {
-          // 日期筛选：从活动列表中提取唯一日期供选择
-          const dates = [...new Set((this._allActivities || []).map(a => a.activityDate))].sort();
-          if (dates.length === 0) {
-            wx.showToast({ title: '暂无数据', icon: 'none' });
-            return;
-          }
           wx.showActionSheet({
-            itemList: ['全部', ...dates],
+            itemList: ['全部', '待确认', '正式活动', '已结算'],
             success: (sRes) => {
-              const val = sRes.tapIndex === 0 ? '' : dates[sRes.tapIndex - 1];
-              this.setData({ filterDate: val });
+              const map = ['', 'pending', 'confirmed', 'settled'];
+              const labels = ['', '待确认', '正式活动', '已结算'];
+              this.setData({
+                filterStatus: map[sRes.tapIndex] || '',
+                filterStatusLabel: labels[sRes.tapIndex] || '',
+              });
               this._applyFilters();
             },
           });
         } else if (res.tapIndex === 1) {
-          // 状态筛选
-          wx.showActionSheet({
-            itemList: ['全部', '待确认', '正式活动', '已结束'],
-            success: (sRes) => {
-              const map = ['', 'pending', 'confirmed', 'completed'];
-              this.setData({ filterStatus: map[sRes.tapIndex] || '' });
-              this._applyFilters();
-            },
-          });
-        } else if (res.tapIndex === 2) {
-          // 预订人筛选：从当前列表中提取唯一预订人
           const bookers = [...new Set(this.data.activities.map(a => a.bookingPerson))];
           if (bookers.length === 0) {
             wx.showToast({ title: '暂无数据', icon: 'none' });
@@ -121,31 +155,153 @@ Page({
               this._applyFilters();
             },
           });
-        } else if (res.tapIndex === 3) {
-          // 清除筛选
-          this.setData({ filterDate: '', filterStatus: '', filterBooker: '' });
-          this._applyFilters();
         }
       },
     });
   },
 
+  // ========== 四列日期选择器（年/月/日/模式） ==========
+
+  _initMultiSelector(todayDate) {
+    const now = todayDate || new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const d = now.getDate() - 1;
+
+    // 年份范围：当前年 ± 5
+    const years = [];
+    for (let i = y - 5; i <= y + 5; i++) years.push(String(i));
+    const months = Array.from({ length: 12 }, (_, i) => String(i + 1));
+    const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
+    const modes = ['指定日期', '今天', '今天及之后'];
+
+    this._multiYears = years;
+    this._multiMonths = months;
+    this._multiDays = days;
+    this._multiModes = modes;
+
+    const yearIdx = years.indexOf(String(y));
+    this.setData({
+      multiSelectorRange: [years, months, days, modes],
+      multiSelectorValue: [yearIdx, m, d, 1], // 默认选"当天"
+    });
+  },
+
+  // 列切换时动态更新日数
+  onMultiColumnChange(e) {
+    const { column, value } = e.detail;
+    const range = this.data.multiSelectorRange.slice();
+    const val = this.data.multiSelectorValue.slice();
+    val[column] = value;
+
+    if (column === 0 || column === 1) {
+      // 年或月变了，重新计算当月天数
+      const year = parseInt(this._multiYears[val[0]]);
+      const month = parseInt(this._multiMonths[val[1]]);
+      const maxDay = new Date(year, month, 0).getDate();
+      const days = Array.from({ length: maxDay }, (_, i) => String(i + 1));
+      this._multiDays = days;
+      range[2] = days;
+      if (val[2] >= days.length) val[2] = days.length - 1;
+    }
+
+    // 年月日滚动后，如果不是今天日期，自动切换第四个滚轴为"指定日期"
+    if (column <= 2) {
+      const selYear = parseInt(this._multiYears[val[0]]);
+      const selMonth = parseInt(this._multiMonths[val[1]]);
+      const selDay = parseInt(this._multiDays[val[2]]);
+      const today = new Date();
+      if (selYear !== today.getFullYear() || selMonth !== today.getMonth() + 1 || selDay !== today.getDate()) {
+        val[3] = 0; // "指定日期"
+      }
+    }
+
+    this.setData({ multiSelectorRange: range, multiSelectorValue: val });
+  },
+
+  // 选择确认
+  onMultiDateChange(e) {
+    const val = e.detail.value;
+    const year = this._multiYears[val[0]];
+    const month = this._multiMonths[val[1]];
+    const day = this._multiDays[val[2]];
+    const mode = this._multiModes[val[3]];
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    let modeVal, label;
+    if (mode === '今天') {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      modeVal = 'today';
+      label = '今天';
+      this.setData({ filterDate: todayStr, filterDateMode: modeVal, filterDateLabel: label });
+    } else if (mode === '今天及之后') {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      modeVal = 'todayAndAfter';
+      label = '今天及之后';
+      this.setData({ filterDate: todayStr, filterDateMode: modeVal, filterDateLabel: label });
+    } else {
+      modeVal = 'specific';
+      label = dateStr;
+      this.setData({ filterDate: dateStr, filterDateMode: modeVal, filterDateLabel: dateStr });
+    }
+
+    this._applyFilters();
+  },
+
+  clearDateFilter() {
+    this.setData({ filterDate: '', filterDateMode: '', filterDateLabel: '📅 选择日期' });
+    const now = new Date();
+    this._initMultiSelector(now);
+    this._applyFilters();
+  },
+
+  clearStatusFilter() {
+    this.setData({ filterStatus: '', filterStatusLabel: '' });
+    this._applyFilters();
+  },
+
+  clearBookerFilter() {
+    this.setData({ filterBooker: '' });
+    this._applyFilters();
+  },
+
+  clearAllFilters() {
+    const now = new Date();
+    this._initMultiSelector(now);
+    this.setData({
+      filterDate: '', filterDateMode: '', filterDateLabel: '📅 选择日期',
+      filterStatus: '', filterStatusLabel: '', filterBooker: '',
+    });
+    this._applyFilters();
+  },
+
   // 计算当前活跃筛选数（用于角标显示）
   _calcActiveFilters() {
     let n = 0;
-    if (this.data.filterDate) n++;
+    if (this.data.filterDateMode) n++;
     if (this.data.filterStatus) n++;
     if (this.data.filterBooker) n++;
     return n;
   },
 
   // 对 this._allActivities 应用筛选，更新活动列表
-  _applyFilters() {
+  // silent=true 时只返回结果，不调用 setData（供 _silentRefresh 使用）
+  _applyFilters(silent = false) {
     const all = this._allActivities || [];
     let filtered = [...all];
-    if (this.data.filterDate) {
-      filtered = filtered.filter(a => a.activityDate === this.data.filterDate);
+
+    // 搜索关键词：匹配单位名称和预订人
+    if (this.data.searchKey) {
+      const kw = this.data.searchKey.toLowerCase();
+      filtered = filtered.filter(a =>
+        (a.activityUnit && a.activityUnit.toLowerCase().includes(kw)) ||
+        (a.bookingPerson && a.bookingPerson.toLowerCase().includes(kw))
+      );
     }
+
+    // 日期筛选已在云函数层处理，此处仅保留状态和预订人筛选
     if (this.data.filterStatus) {
       filtered = filtered.filter(a => a.status === this.data.filterStatus);
     }
@@ -153,19 +309,24 @@ Page({
       filtered = filtered.filter(a => a.bookingPerson === this.data.filterBooker);
     }
     const n = this._calcActiveFilters();
+    if (silent) {
+      return { filtered, activeFilters: n };
+    }
     this.setData({ activities: filtered, activeFilters: n });
   },
 
   async loadActivities(reset = false) {
     if (this.data.loading) return;
-    const page = reset ? 1 : this.data.page;
+    this._refreshing = true;
     this.setData({ loading: true });
 
     try {
       const raw = await getActivityList({
-        page,
+        page: 1,
         pageSize: PAGE_SIZE,
-        keyword: this.data.searchKey,
+        filterDate: this.data.filterDate,
+        filterDateMode: this.data.filterDateMode,
+        filterStatus: this.data.filterStatus,
       });
 
       // 兼容多种返回格式：
@@ -186,26 +347,15 @@ Page({
         total = 0;
       }
 
-      // 格式化列表项
-      if (list.length > 0) {
-        console.log('[loadActivities] 第一条数据字段:', Object.keys(list[0]));
-        console.log('[loadActivities] 第一条数据详情:');
-        const sample = list[0];
-        Object.keys(sample).forEach(k => {
-          console.log('  ', k, ':', sample[k]);
-        });
-      }
-      const formatted = list.map(a => this._formatItem(a));
+      const cleanList = list.filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'));
+      const formatted = cleanList.map(a => this._formatItem(a));
 
-      // 存储原始数据（用于筛选）
-      let all = reset ? [] : [...(this._allActivities || [])];
-      all = [...all, ...formatted];
-      this._allActivities = all;
+      // 统一为全量替换（避免与 _silentRefresh 冲突）
+      this._allActivities = formatted;
 
       this.setData({
         total,
-        page: page + 1,
-        hasMore: all.length < total,
+        hasMore: formatted.length < total,
         loading: false,
       });
 
@@ -213,6 +363,58 @@ Page({
       this._applyFilters();
     } catch (e) {
       this.setData({ loading: false });
+    }
+    this._refreshing = false;
+  },
+
+  // 静默刷新：20秒定时器回调，更新列表数据但不跳转滚动位置
+  async _silentRefresh() {
+    // 定时器已被清除（页面已隐藏）或正在手动刷新，中止
+    if (!this.data.timer || this._refreshing) return;
+
+    try {
+      const raw = await getActivityList({
+        page: 1,
+        pageSize: 1000,
+        filterDate: this.data.filterDate,
+        filterDateMode: this.data.filterDateMode,
+        filterStatus: this.data.filterStatus,
+      });
+
+      // 兼容多种返回格式
+      let list, total;
+      if (Array.isArray(raw)) {
+        list = raw;
+        total = raw.length;
+      } else if (raw && Array.isArray(raw.list)) {
+        list = raw.list;
+        total = raw.total || raw.list.length;
+      } else if (raw && Array.isArray(raw.data)) {
+        list = raw.data;
+        total = raw.total || raw.data.length;
+      } else {
+        return;
+      }
+
+      // 格式化列表项，排除系统文档
+      const cleanList = list.filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'));
+      const formatted = cleanList.map(a => this._formatItem(a));
+
+      // 更新原始数据
+      this._allActivities = formatted;
+
+      // 应用筛选（静默模式）
+      const { filtered, activeFilters } = this._applyFilters(true);
+
+      // 更新列表（不显示 loading，不跳转滚动位置）
+      this.setData({
+        activities: filtered,
+        total,
+        hasMore: formatted.length < total,
+        activeFilters,
+      });
+    } catch (e) {
+      console.warn('[_silentRefresh] 失败:', e);
     }
   },
 
@@ -227,28 +429,39 @@ Page({
     const statusMap = {
       confirmed: 'tag-active',
       completed: 'tag-completed',
-      pending: 'tag-pending',
+      pending:   'tag-pending',
+      settled:   'tag-settled',
     };
-    const steps = (a.steps || []).map(s => ({
-      id: s.id,
+    const rawSteps = a.steps || [];
+    // 每个环节独立显示完成状态（绿=已完成，橙=未完成）
+    const steps = rawSteps.map(s => ({
+      id: s._id || s.id || s.tempId,
+      stepName: s.stepName || '',
+      startTime: s.startTime || '',
+      endTime: s.endTime || '',
       status: s.completedAt ? 'done' : 'doing',
     }));
+    // 从 vouchers 数组计算三个凭证的上传状态
+    const voucherMap = {};
+    (a.vouchers || []).forEach(v => { voucherMap[v.type] = true; });
     return {
       ...a,
+      id: a._id || a.id,  // wx:key 唯一标识
       activityMonth: validDate ? `${ts.getMonth() + 1}月` : '—',
       activityDay: validDate ? `${ts.getDate()}日` : '—',
       activityDate: validDate ? formatDate(dateVal) : (dateVal || '—'),
-      firstStepTime: a.steps && a.steps[0] ? a.steps[0].startTime : '',
+      arrivalTime: a.arrivalTime || '',
       statusLabel: getStatusLabel(a.status),
       statusClass: statusMap[a.status] || 'tag-pending',
       steps,
+      depositVoucher:    !!voucherMap['deposit'],
+      billVoucher:      !!voucherMap['bill'],
+      settlementVoucher: !!voucherMap['settlement'],
     };
   },
 
   goDetail(e) {
     const id = e.currentTarget.dataset.id;
-    // 兼容 _id 和 id 两种字段名
-    const activityId = id || this.data.activities.find(a => a._id === id)?._id;
     wx.navigateTo({ url: `/pages/activity-detail/activity-detail?id=${id}` });
   },
 

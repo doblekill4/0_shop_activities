@@ -21,7 +21,7 @@ const login = (data = {}) => {
         name: data.name || '测试用户',
         department: data.department || '未分配',
         permissions: isAdmin
-          ? ['create_activity', 'edit_activity', 'delete_activity', 'upload_voucher', 'manage_users', 'manage_departments', 'view_all_revisions', 'export_data', 'send_notification', 'assign_process_owner']
+          ? ['create_activity', 'edit_activity', 'delete_activity', 'upload_voucher', 'manage_users', 'manage_departments', 'view_all_revisions', 'export_data', 'send_notification', 'assign_process_owner', 'set_capacity_limit']
           : ['create_activity', 'edit_activity', 'upload_voucher'],
         role: isAdmin ? 'admin' : 'user',
       };
@@ -99,6 +99,7 @@ const autoLogin = () => {
             'upload_voucher', 'manage_users', 'manage_departments',
             'view_all_revisions', 'export_data', 'send_notification',
             'assign_process_owner',
+            'set_capacity_limit',
           ],
           role: 'admin',
         };

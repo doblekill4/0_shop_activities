@@ -5,7 +5,13 @@ const { getDepartments, getUsers } = require('../../../../services/admin');
 Page({
   data: {
     rules: [],
-    timingOptions: ['活动开始前', '活动结束后'],
+    timingOptions: [
+      '活动开始前',
+      '活动结束后',
+      '流程开始前（通知环节负责人）',
+      '上一流程结束后（通知下一环节负责人）',
+      '上一流程结束后（通知指定部门）',
+    ],
     departments: [],
     allUsers: [],
     saving: false,
@@ -13,14 +19,30 @@ Page({
 
   async onLoad() {
     wx.setNavigationBarTitle({ title: '通知配置' });
-    const [deptRes, userRes] = await Promise.all([getDepartments(), getUsers()]);
-    this.setData({
-      departments: deptRes.data || [],
-      allUsers: userRes.data || [],
-    });
-    // 加载已有规则（如有）
+    try {
+      const [deptRes, userRes] = await Promise.all([getDepartments(), getUsers()]);
+      this.setData({
+        departments: Array.isArray(deptRes) ? deptRes : (deptRes.data || []),
+        allUsers: Array.isArray(userRes) ? userRes : (userRes.data || []),
+      });
+    } catch (e) {
+      console.warn('[notif-config] 加载数据失败', e);
+    }
+
+    // 加载已有规则：优先云端，本地缓存兜底
+    try {
+      const cloudRes = await wx.cloud.callFunction({
+        name: 'notifications',
+        data: { action: 'loadGlobalReminders' },
+      });
+      if (cloudRes.result && cloudRes.result.code === 0 && cloudRes.result.data.length > 0) {
+        this.setData({ rules: cloudRes.result.data });
+        wx.setStorageSync('notification_rules', cloudRes.result.data);
+        return;
+      }
+    } catch (e) { /* 云端加载失败，用本地缓存 */ }
     const saved = wx.getStorageSync('notification_rules');
-    if (saved) this.setData({ rules: saved });
+    if (saved && saved.length) this.setData({ rules: saved });
   },
 
   addRule() {
@@ -43,7 +65,7 @@ Page({
 
   onTimingChange(e) {
     const idx = e.currentTarget.dataset.index;
-    this.setData({ [`rules[${idx}].timingIndex`]: e.detail.value });
+    this.setData({ [`rules[${idx}].timingIndex`]: Number(e.detail.value) });
   },
 
   onMinutesInput(e) {
@@ -54,7 +76,7 @@ Page({
   onTargetTypeChange(e) {
     const idx = e.currentTarget.dataset.index;
     this.setData({
-      [`rules[${idx}].targetTypeIndex`]: e.detail.value,
+      [`rules[${idx}].targetTypeIndex`]: Number(e.detail.value),
       [`rules[${idx}].targets`]: [],
     });
   },
@@ -62,16 +84,23 @@ Page({
   addTarget(e) {
     const ruleIndex = e.currentTarget.dataset.ruleIndex;
     const rule = this.data.rules[ruleIndex];
+    if (!rule) return;
     const list = rule.targetTypeIndex === 0 ? this.data.allUsers : this.data.departments;
-    const items = list.map(i => i.name);
+    if (!list || list.length === 0) {
+      wx.showToast({ title: '暂无可选人员或群组', icon: 'none' });
+      return;
+    }
+    const items = list.map(i => i.name || '未命名');
 
     wx.showActionSheet({
       itemList: items,
       success: (res) => {
         const selected = list[res.tapIndex];
+        if (!selected) return;
+        const selId = selected._id || selected.id || selected.userId;
         const targets = [...rule.targets];
-        if (!targets.find(t => t.id === selected.id)) {
-          targets.push({ id: selected.id || selected.userId, name: selected.name });
+        if (!targets.find(t => t.id === selId)) {
+          targets.push({ id: selId, name: selected.name });
         }
         this.setData({ [`rules[${ruleIndex}].targets`]: targets });
       },
@@ -87,7 +116,15 @@ Page({
   async saveRules() {
     this.setData({ saving: true });
     try {
+      // 本地缓存
       wx.setStorageSync('notification_rules', this.data.rules);
+      // 保存到云函数（全局提醒规则）
+      try {
+        const { configureReminders } = require('../../../../services/notification');
+        await configureReminders('global', this.data.rules);
+      } catch (e) {
+        console.warn('[notif-config] 云函数保存失败，已保存到本地', e);
+      }
       wx.showToast({ title: '配置已保存', icon: 'success' });
     } catch (e) {
       wx.showToast({ title: '保存失败', icon: 'none' });

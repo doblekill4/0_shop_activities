@@ -6,7 +6,59 @@
     <!-- 提示横幅 -->
     <view class="banner-tip">
       <text class="tip-icon">⚠️</text>
-      <text class="tip-text">上传订金凭证后，活动才会进入公共列表（正式活动）</text>
+      <text class="tip-text">上传订金凭证后，活动才会出现在公共列表中</text>
+    </view>
+
+    <!-- ========== 活动日历 ========== -->
+    <view class="card calendar-section">
+      <view class="cal-header">
+        <view class="cal-nav-arrow" bindtap="calPrevMonth">‹</view>
+        <text class="cal-title">{{calYear}}年{{calMonth}}月</text>
+        <view class="cal-nav-arrow" bindtap="calNextMonth">›</view>
+      </view>
+      <view class="cal-weekdays">
+        <text class="cal-wd">一</text><text class="cal-wd">二</text><text class="cal-wd">三</text>
+        <text class="cal-wd">四</text><text class="cal-wd">五</text><text class="cal-wd">六</text><text class="cal-wd">日</text>
+      </view>
+      <view class="cal-grid" wx:for="{{calWeeks}}" wx:key="index">
+        <view
+          class="cal-cell {{cell ? cell.cls : 'cal-empty'}} {{cell && cell.isToday ? 'cal-today' : ''}}"
+          wx:for="{{item}}" wx:for-item="cell" wx:key="index"
+          data-date="{{cell ? cell.dateStr : ''}}"
+          bindtap="calTapDay"
+        >
+          <block wx:if="{{cell}}">
+            <text class="cal-day">{{cell.day}}</text>
+            <text class="cal-count" wx:if="{{cell.count > 0}}">{{cell.count}}场</text>
+            <text class="cal-people" wx:if="{{cell.totalPeople > 0}}">{{cell.totalPeople}}人</text>
+          </block>
+        </view>
+      </view>
+      <view class="cal-legend">
+        <view class="cal-lg-item"><view class="cal-lg-dot cal-green-dot" /><text>可预约</text></view>
+        <view class="cal-lg-item"><view class="cal-lg-dot cal-yellow-dot" /><text>已有预定</text></view>
+        <view class="cal-lg-item"><view class="cal-lg-dot cal-purple-dot" /><text>接待上限</text></view>
+      </view>
+    </view>
+
+    <!-- ========== 粘贴识别区域 ========== -->
+    <view class="card paste-section">
+      <view class="section-header">
+        <text class="section-title">📋 粘贴预定信息</text>
+        <text class="paste-hint">自动识别填写</text>
+      </view>
+      <textarea
+        class="paste-textarea"
+        placeholder="粘贴活动预定信息，自动识别日期、单位、流程等字段"
+        value="{{pasteText}}"
+        bindinput="onPasteInput"
+        auto-height
+        maxlength="5000"
+      />
+      <button class="btn-parse" bindtap="parseInfo" loading="{{parsing}}" disabled="{{!pasteText}}">
+        <text wx:if="{{!parsing}}">🔍 识别并填充</text>
+        <text wx:else>识别中...</text>
+      </button>
     </view>
 
     <!-- ========== 基本信息 ========== -->
@@ -18,6 +70,15 @@
         <picker mode="date" value="{{form.activityDate}}" bindchange="onDateChange">
           <view class="form-input picker-value {{!form.activityDate ? 'placeholder' : ''}}">
             {{form.activityDate || '请选择日期'}}
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label required">到店时间</text>
+        <picker mode="time" value="{{form.arrivalTime}}" bindchange="onArrivalTimeChange">
+          <view class="form-input picker-value {{!form.arrivalTime ? 'placeholder' : ''}}">
+            {{form.arrivalTime || '请选择到店时间'}}
           </view>
         </picker>
       </view>
@@ -97,8 +158,19 @@
 
           <view class="form-item">
             <text class="form-label">负责人</text>
-            <picker mode="selector" range="{{userList}}" range-key="name"
-              value="{{item.ownerIndex}}" bindchange="onStepOwnerChange"
+            <!-- 管理员：部门+人员双列选择 -->
+            <picker wx:if="{{isAdmin}}" mode="multiSelector" range="{{deptUserRange}}"
+              value="{{item.ownerDeptValue}}"
+              bindchange="onStepOwnerChange"
+              bindcolumnchange="onStepOwnerColumnChange"
+              data-index="{{index}}">
+              <view class="form-input picker-value">
+                {{item.ownerName || '请选择负责人'}}
+              </view>
+            </picker>
+            <!-- 非管理员：只有自己 -->
+            <picker wx:else mode="selector" range="{{userList}}" range-key="name"
+              value="{{0}}" bindchange="onStepOwnerChange"
               data-index="{{index}}">
               <view class="form-input picker-value">
                 {{item.ownerName || '请选择负责人'}}
@@ -134,8 +206,9 @@
       </view>
       <view class="form-item">
         <text class="form-label required">活动预订人</text>
-        <input class="form-input" placeholder="请填写预订人姓名"
+        <input wx:if="{{isAdmin}}" class="form-input" placeholder="请填写预订人姓名"
           value="{{form.bookingPerson}}" bindinput="onInput" data-field="bookingPerson" />
+        <view wx:else class="form-input picker-value">{{form.bookingPerson || '（自动填写）'}}</view>
       </view>
     </view>
 
@@ -212,11 +285,11 @@
       </view>
     </view>
 
-    <!-- ========== 香囊账户确认 ========== -->
-    <view class="card form-section sachet-section">
+    <!-- ========== 香囊账户确认（含香囊关键词时显示且必选） ========== -->
+    <view class="card form-section sachet-section" wx:if="{{showSachet}}">
       <view class="section-header">
-        <text class="section-title">香囊账户确认</text>
-        <text class="warn-tag">⚠⚠ 务必预订前确认！</text>
+        <text class="section-title required">香囊账户确认</text>
+        <text class="warn-tag">⚠ 必选</text>
       </view>
       <view class="sachet-choice">
         <view
@@ -238,7 +311,9 @@
 
     <!-- 底部操作 -->
     <view class="bottom-actions">
-      <button class="btn-secondary flex-1" bindtap="saveDraft" loading="{{saving}}">存为草稿</button>
+      <button class="btn-secondary flex-1" bindtap="saveDraft" loading="{{saving}}">
+        {{hasDraft ? '已保存草稿：继续编辑' : '存为草稿'}}
+      </button>
       <button class="btn-primary flex-2" bindtap="submitActivity" loading="{{submitting}}">提交活动</button>
     </view>
 

@@ -20,6 +20,8 @@ exports.main = async (event, context) => {
         return await deleteStep(event, openid);
       case 'confirmStep':
         return await confirmStep(event, openid);
+      case 'undoConfirmStep':
+        return await undoConfirmStep(event, openid);
       case 'assignOwner':
         return await assignOwner(event, openid);
       default:
@@ -84,8 +86,11 @@ async function updateStep(event, openid) {
   if (!res.data) return { code: 404, message: '活动不存在' };
 
   const steps = res.data.steps || [];
-  const idx = steps.findIndex(s => s._id === stepId);
+  const idx = findStepIndex(steps, stepId);
   if (idx === -1) return { code: 404, message: '环节不存在' };
+
+  // 修复旧数据：确保有 _id
+  ensureStepId(steps[idx]);
 
   // 更新字段
   Object.keys(data).forEach(key => {
@@ -117,8 +122,10 @@ async function deleteStep(event, openid) {
   if (!res.data) return { code: 404, message: '活动不存在' };
 
   const steps = res.data.steps || [];
-  const step = steps.find(s => s._id === stepId);
-  const newSteps = steps.filter(s => s._id !== stepId);
+  const idx = findStepIndex(steps, stepId);
+  if (idx === -1) return { code: 404, message: '环节不存在' };
+  const stepName = steps[idx].stepName;
+  const newSteps = steps.filter((s, i) => i !== idx);
 
   await db.collection('activities').doc(activityId).update({
     data: {
@@ -128,7 +135,7 @@ async function deleteStep(event, openid) {
   });
 
   // 记录修订
-  await addRevisionLog(activityId, openid, userInfo.name, 'deleteStep', { stepName: step ? step.stepName : '' });
+  await addRevisionLog(activityId, openid, userInfo.name, 'deleteStep', { stepName: stepName });
 
   return { code: 0, message: '环节删除成功' };
 }
@@ -142,8 +149,11 @@ async function confirmStep(event, openid) {
   if (!res.data) return { code: 404, message: '活动不存在' };
 
   const steps = res.data.steps || [];
-  const idx = steps.findIndex(s => s._id === stepId);
+  const idx = findStepIndex(steps, stepId);
   if (idx === -1) return { code: 404, message: '环节不存在' };
+
+  // 修复旧数据：确保有 _id
+  ensureStepId(steps[idx]);
 
   // 检查是否是负责人
   if (steps[idx].ownerId !== openid && userInfo.role !== 'admin') {
@@ -164,7 +174,55 @@ async function confirmStep(event, openid) {
   // 记录修订
   await addRevisionLog(activityId, openid, userInfo.name, 'confirmStep', { stepName: steps[idx].stepName });
 
+  // 钩子：检查是否有「上一流程结束后通知下一环节负责人」规则
+  try {
+    await cloud.callFunction({
+      name: 'notifications',
+      data: { action: 'hookStepCompleted', activityId, stepIndex: idx },
+    });
+  } catch (e) {
+    console.warn('[confirmStep] 通知钩子调用失败（非致命）', e.message);
+  }
+
   return { code: 0, message: '环节已确认完成' };
+}
+
+/* ========== 撤销环节完成 ========== */
+async function undoConfirmStep(event, openid) {
+  const { activityId, stepId } = event;
+  const userInfo = await getUserInfo(openid);
+
+  const res = await db.collection('activities').doc(activityId).get();
+  if (!res.data) return { code: 404, message: '活动不存在' };
+
+  const steps = res.data.steps || [];
+  const idx = findStepIndex(steps, stepId);
+  if (idx === -1) return { code: 404, message: '环节不存在' };
+
+  // 修复旧数据：确保有 _id
+  ensureStepId(steps[idx]);
+
+  // 权限：只有负责人或管理员可以撤销
+  if (steps[idx].ownerId !== openid && userInfo.role !== 'admin') {
+    return { code: 403, message: '只有环节负责人可以撤销完成' };
+  }
+
+  // 还原为未完成状态
+  steps[idx].status = 'pending';
+  steps[idx].completedAt = null;
+  steps[idx].updatedAt = new Date();
+
+  await db.collection('activities').doc(activityId).update({
+    data: {
+      steps: steps,
+      updatedAt: new Date(),
+    }
+  });
+
+  // 记录修订
+  await addRevisionLog(activityId, openid, userInfo.name, 'undoConfirmStep', { stepName: steps[idx].stepName });
+
+  return { code: 0, message: '环节完成已撤销' };
 }
 
 /* ========== 指派环节负责人 ========== */
@@ -180,8 +238,11 @@ async function assignOwner(event, openid) {
   if (!res.data) return { code: 404, message: '活动不存在' };
 
   const steps = res.data.steps || [];
-  const idx = steps.findIndex(s => s._id === stepId);
+  const idx = findStepIndex(steps, stepId);
   if (idx === -1) return { code: 404, message: '环节不存在' };
+
+  // 修复旧数据：确保有 _id
+  ensureStepId(steps[idx]);
 
   steps[idx].ownerId = userId;
   steps[idx].ownerName = newOwner ? newOwner.name : '';
@@ -207,6 +268,29 @@ async function assignOwner(event, openid) {
 async function getUserInfo(openid) {
   const res = await db.collection('users').where({ openid }).get();
   return res.data[0] || { role: 'user', name: '未知用户' };
+}
+
+/**
+ * 查找环节索引：兼容旧数据（无 _id）和旧格式字段
+ * 优先级：_id > id > tempId
+ */
+function findStepIndex(steps, stepId) {
+  // 1) 精确匹配 _id
+  let idx = steps.findIndex(s => s._id === stepId);
+  if (idx !== -1) return idx;
+  // 2) 兼容旧数据：匹配 id 或 tempId
+  idx = steps.findIndex(s => s.id === stepId || String(s.tempId) === String(stepId));
+  return idx;
+}
+
+/**
+ * 确保环节有 _id，没有则生成并返回
+ */
+function ensureStepId(step) {
+  if (!step._id) {
+    step._id = 'step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+  }
+  return step;
 }
 
 async function addRevisionLog(activityId, openid, userName, action, detail) {

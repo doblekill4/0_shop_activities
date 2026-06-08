@@ -1,0 +1,138 @@
+/* pages/admin/permission-groups/permission-groups.wxss */
+@import '../departments/departments.wxss';
+
+/* 权限标签 */
+.perm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 12rpx;
+}
+
+.perm-tag {
+  background: #E3F2FD;
+  color: #1565C0;
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+  font-size: 22rpx;
+}
+
+.perm-empty {
+  font-size: 22rpx;
+  color: #bbb;
+  margin-top: 12rpx;
+}
+
+/* 成员预览 */
+.member-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 12rpx;
+}
+
+.member-chip {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 6rpx 16rpx;
+  border-radius: 16rpx;
+  font-size: 22rpx;
+}
+
+.member-chip.more {
+  background: #f5f5f5;
+  color: #888;
+}
+
+/* 表单 */
+.form-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24rpx;
+}
+
+.form-item .label {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.form-item .input {
+  border: 1rpx solid #ddd;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: #f9f9f9;
+}
+
+.form-item .textarea {
+  border: 1rpx solid #ddd;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: #f9f9f9;
+  min-height: 160rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-hint {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+/* 权限开关列表 */
+.perm-toggle-list {
+  margin-bottom: 24rpx;
+}
+
+.perm-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.perm-toggle:last-child {
+  border-bottom: none;
+}
+
+.perm-toggle-label {
+  font-size: 28rpx;
+  color: #333;
+}
+
+/* toggle switch */
+.toggle-switch {
+  width: 88rpx;
+  height: 48rpx;
+  border-radius: 24rpx;
+  background: #ddd;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.toggle-switch.active {
+  background: #2E7D32;
+}
+
+.toggle-knob {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  transition: left 0.2s;
+  box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.15);
+}
+
+.toggle-knob.active {
+  left: 44rpx;
+}

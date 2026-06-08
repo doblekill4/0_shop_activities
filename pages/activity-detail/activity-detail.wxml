@@ -4,7 +4,7 @@
   <!-- 顶部操作栏 -->
   <view class="action-bar" wx:if="{{canEdit || canDelete}}">
     <view class="action-item" bindtap="goEdit" wx:if="{{canEdit}}">
-      <text class="action-icon">✏️</text><text>编辑</text>
+      <text class="action-icon">✏️</text><text>更新活动信息</text>
     </view>
     <view class="action-item danger" bindtap="confirmDelete" wx:if="{{isAdmin}}">
       <text class="action-icon">🗑</text><text>删除</text>
@@ -28,10 +28,14 @@
 
       <view class="info-grid">
         <view class="info-item">
-          <text class="info-label">活动时间</text>
+          <text class="info-label">活动日期</text>
           <text class="info-value highlight-check {{activity._dateChanged ? 'revision-changed' : ''}}">
             {{activity.activityDate}}
           </text>
+        </view>
+        <view class="info-item" wx:if="{{activity.arrivalTime}}">
+          <text class="info-label">到店时间</text>
+          <text class="info-value">{{activity.arrivalTime}}</text>
         </view>
         <view class="info-item">
           <text class="info-label">活动单位</text>
@@ -81,7 +85,7 @@
 
       <!-- 进度条 -->
       <view class="progress-bar-bg">
-        <view class="progress-bar-fill" style="width: {{progressPct}}%;" />
+        <view class="progress-bar-fill" style="width: {{progressPct + '%'}}" />
       </view>
 
       <view class="step-list">
@@ -116,6 +120,13 @@
               data-step-id="{{step.id}}"
               bindtap="confirmStepDone"
             >确认完成</button>
+            <!-- 撤销完成按钮 -->
+            <button
+              class="btn-undo-step"
+              wx:if="{{step.completedAt && step.isCurrentUserOwner}}"
+              data-step-id="{{step.id}}"
+              bindtap="undoStepDone"
+            >撤销完成</button>
           </view>
         </view>
       </view>
@@ -151,38 +162,39 @@
     <view class="card section-card">
       <text class="section-title">场地需求</text>
       <view class="requirement-grid">
-        <view class="req-item {{activity.venueNeeds.build ? 'active' : ''}}">
+        <view class="req-item active" wx:if="{{activity.venueNeeds.build}}">
           <text class="req-icon">🏗</text>
           <text>搭建</text>
         </view>
-        <view class="req-item {{activity.venueNeeds.rehearsal ? 'active' : ''}}">
+        <view class="req-item active" wx:if="{{activity.venueNeeds.rehearsal}}">
           <text class="req-icon">🎭</text>
           <text>预演</text>
         </view>
-        <view class="req-item {{activity.venueNeeds.power ? 'active' : ''}}">
+        <view class="req-item active" wx:if="{{activity.venueNeeds.power}}">
           <text class="req-icon">⚡</text>
           <text>接电</text>
         </view>
-        <view class="req-item {{activity.venueNeeds.mainVisual ? 'active' : ''}}">
+        <view class="req-item active" wx:if="{{activity.venueNeeds.mainVisual}}">
           <text class="req-icon">🖼</text>
           <text>主视觉</text>
         </view>
-        <view class="req-item {{activity.venueNeeds.filming ? 'active' : ''}}">
+        <view class="req-item active" wx:if="{{activity.venueNeeds.filming}}">
           <text class="req-icon">🎬</text>
           <text>拍摄/直播</text>
         </view>
+        <text wx:if="{{!activity.venueNeeds.build && !activity.venueNeeds.rehearsal && !activity.venueNeeds.power && !activity.venueNeeds.mainVisual && !activity.venueNeeds.filming}}" class="no-needs">无特殊场地需求</text>
       </view>
     </view>
 
-    <!-- ===== 发票与香囊账户 ===== -->
+    <!-- ===== 发票需求 ===== -->
     <view class="card section-card">
-      <text class="section-title">发票 & 香囊账户</text>
+      <text class="section-title">{{showSachet ? '发票 & 香囊账户' : '发票需求'}}</text>
       <view class="info-grid">
         <view class="info-item full-width">
           <text class="info-label">发票需求</text>
           <text class="info-value">{{activity.invoiceNeeds || '—'}}</text>
         </view>
-        <view class="info-item">
+        <view wx:if="{{showSachet}}" class="info-item">
           <text class="info-label">香囊账户</text>
           <view class="sachet-tag {{activity.sachetAccount === 'clinic' ? 'clinic' : 'shop'}}">
             <text wx:if="{{activity.sachetAccount === 'clinic'}}">⚠️ 医馆账户</text>
@@ -200,23 +212,24 @@
         <view class="voucher-block" wx:for="{{voucherTypes}}" wx:key="type">
           <view class="voucher-block-header">
             <text class="voucher-type-name">{{item.label}}</text>
-            <view class="voucher-status {{item.uploaded ? 'uploaded' : 'missing'}}">
-              <text>{{item.uploaded ? '已上传' : '未上传'}}</text>
+            <view class="voucher-status {{item.vouchers.length > 0 ? 'uploaded' : 'missing'}}">
+              <text>{{item.vouchers.length > 0 ? item.vouchers.length + '张' : '未上传'}}</text>
             </view>
           </view>
-          <view wx:if="{{item.uploaded}}" class="voucher-preview">
-            <image src="{{item.fileID}}" mode="aspectFit" class="voucher-img" bindtap="previewVoucher" data-file-id="{{item.fileID}}" />
-            <text class="voucher-upload-time">{{item.uploadTime}}</text>
-            <view class="voucher-actions" wx:if="{{canUploadVoucher}}">
-              <text class="btn-delete-voucher" data-voucher-id="{{item.voucherId}}" catchtap="deleteVoucher">删除</text>
+          <!-- 图片画廊 -->
+          <view class="voucher-gallery" wx:if="{{item.vouchers.length > 0}}">
+            <view class="voucher-gallery-item" wx:for="{{item.vouchers}}" wx:key="voucherId">
+              <image src="{{item.fileID}}" mode="aspectFill" class="voucher-thumb" bindtap="previewVoucher" data-file-id="{{item.fileID}}" />
+              <view class="voucher-thumb-time">{{item.uploadTime}}</view>
+              <view class="voucher-thumb-del" wx:if="{{canManageVoucher}}" data-voucher-id="{{item.voucherId}}" catchtap="deleteVoucher">×</view>
             </view>
           </view>
           <button
             class="btn-upload"
-            wx:if="{{!item.uploaded && canUploadVoucher}}"
+            wx:if="{{item.vouchers.length < item.maxCount && canManageVoucher}}"
             data-voucher-type="{{item.type}}"
             bindtap="uploadVoucher"
-          >点击上传</button>
+          >点击上传 ({{item.vouchers.length}}/{{item.maxCount}})</button>
         </view>
       </view>
     </view>
@@ -230,27 +243,15 @@
 
       <view class="revision-list">
         <view wx:if="{{revisions.length === 0}}" class="empty-state">
-          <text>暂无修订记录</text>
+          <text>暂无操作记录</text>
         </view>
-        <view
-          class="log-item"
-          wx:for="{{revisions}}"
-          wx:key="id"
-        >
+        <view class="log-item" wx:for="{{revisions}}" wx:key="_key">
           <view class="log-meta">
-            <text class="log-user">{{item.operatorName}}</text>
-            <text class="log-time">{{item.createdAtStr}}</text>
+            <text class="log-user">{{item.operator}}</text>
+            <text class="log-time">{{item.time}}</text>
           </view>
           <view class="log-content">
-            <view wx:for="{{item.changes}}" wx:for-item="change" wx:key="field">
-              <text class="change-field">【{{change.field}}】</text>
-              <text class="revision-removed">{{change.oldVal}}</text>
-              <text class="change-arrow"> → </text>
-              <text class="revision-added">{{change.newVal}}</text>
-            </view>
-            <text wx:if="{{item.type === 'step_confirm'}}">
-              <text class="revision-added">环节「{{item.stepName}}」由 {{item.operatorName}} 确认完成</text>
-            </text>
+            <text>{{item.summary}}</text>
           </view>
         </view>
       </view>

@@ -1,48 +1,100 @@
-<!-- pages/login/login.wxml（云开发版） -->
+<!-- pages/login/login.wxml - 微信风格授权登录 + 群入口识别 -->
 <view class="login-page">
-  <view class="logo-area">
-    <image class="logo" src="/assets/images/logo.png" mode="aspectFit" />
-    <text class="app-name">知嘛健康零号店</text>
-    <text class="app-sub">活动预定管理系统</text>
-  </view>
 
-  <view class="login-card card">
-    <text class="login-title">欢迎登录</text>
-    <text class="login-desc">使用微信账号快速登录，开始管理活动</text>
-
-    <!-- 注册表单（新用户需要填写） -->
-    <view wx:if="{{needsRegister}}" class="register-form">
-      <view class="form-item">
-        <text class="label">姓名</text>
-        <input
-          class="input"
-          placeholder="请输入您的姓名"
-          value="{{name}}"
-          bindinput="onNameInput"
-        />
-      </view>
-      <view class="form-item">
-        <text class="label">部门</text>
-        <input
-          class="input"
-          placeholder="请输入您的部门"
-          value="{{department}}"
-          bindinput="onDeptInput"
-        />
-      </view>
+  <!-- Step 0: 授权登录 -->
+  <view class="login-step" wx:if="{{step === 'auth'}}">
+    <view class="login-logo-wrap">
+      <image class="login-logo" src="/assets/images/logo.png" mode="aspectFit" />
+    </view>
+    <view class="login-brand">
+      <text class="brand-name">知嘛健康零号店</text>
+      <text class="brand-desc">活动预定管理系统</text>
     </view>
 
-    <button
-      class="btn-wechat"
-      bindtap="handleLogin"
-      loading="{{loading}}"
-      disabled="{{loading}}"
-    >
-      <text class="btn-wechat-text">
-        {{needsRegister ? '注册并登录' : '微信一键登录'}}
-      </text>
-    </button>
+    <view class="login-card">
+      <view class="card-icon">🔐</view>
+      <text class="card-title">授权登录</text>
+      <text class="card-desc">授权获取你的微信信息，用于活动管理和身份识别</text>
 
-    <text class="login-tip">登录即表示同意《用户服务协议》和《隐私政策》</text>
+      <button class="btn-auth" bindtap="handleAuth" loading="{{loading}}">
+        <text wx:if="{{!loading}}">微信授权登录</text>
+        <text wx:else>授权中...</text>
+      </button>
+
+      <text class="agreement-text">登录即表示同意使用条款和隐私政策</text>
+    </view>
   </view>
+
+  <!-- Step 1: 获取微信资料 -->
+  <view class="login-step" wx:if="{{step === 'wechatInfo'}}">
+    <view class="profile-header">
+      <text class="profile-title">获取微信资料</text>
+      <text class="profile-desc">一次点击即可获取你的微信头像和昵称</text>
+    </view>
+
+    <view class="profile-card">
+      <view class="avatar-section">
+        <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image class="avatar-preview {{avatarUrl ? 'has-avatar' : ''}}"
+            src="{{avatarUrl || '/assets/images/default-avatar.png'}}" mode="aspectFill" />
+        </button>
+        <text class="avatar-hint">👆 点击使用微信头像</text>
+      </view>
+
+      <view class="profile-item">
+        <text class="profile-label">昵称</text>
+        <input class="profile-input" type="nickname" placeholder="点击自动填入微信昵称"
+          value="{{nickname}}" bindinput="onNicknameInput" maxlength="20" />
+      </view>
+
+      <button class="btn-save-profile" bindtap="confirmWechatInfo">
+        下一步
+      </button>
+    </view>
+  </view>
+
+  <!-- Step 2: 填写姓名和部门 -->
+  <view class="login-step" wx:if="{{step === 'profile'}}">
+    <view class="profile-header">
+      <text class="profile-title">完善信息</text>
+      <text class="profile-desc" wx:if="{{isEmployee}}">
+        🟢 已识别为门店群成员，将自动获得员工权限
+      </text>
+    </view>
+
+    <view class="profile-card">
+      <!-- 头像昵称预览（只读） -->
+      <view class="wechat-preview">
+        <image class="avatar-preview has-avatar" src="{{avatarUrl || '/assets/images/default-avatar.png'}}" mode="aspectFill" />
+        <text class="wechat-nickname">{{nickname || '微信用户'}}</text>
+      </view>
+
+      <view class="profile-item">
+        <text class="profile-label required">姓名</text>
+        <input class="profile-input" placeholder="请填写真实姓名" focus="{{true}}"
+          value="{{name}}" bindinput="onNameInput" maxlength="20" />
+      </view>
+
+      <view class="profile-item" wx:if="{{isEmployee}}">
+        <text class="profile-label required">工号</text>
+        <input class="profile-input" placeholder="请输入工号"
+          value="{{employeeId}}" bindinput="onEmployeeIdInput" maxlength="20" />
+      </view>
+
+      <view class="profile-item">
+        <text class="profile-label required">部门</text>
+        <picker mode="selector" range="{{departmentNames}}" value="{{departmentIndex}}" bindchange="onDepartmentChange">
+          <view class="profile-picker {{department ? '' : 'placeholder'}}">
+            {{department || '请选择部门'}}
+          </view>
+        </picker>
+      </view>
+
+      <button class="btn-save-profile" bindtap="saveProfile" loading="{{saving}}">
+        <text wx:if="{{!saving}}">完成注册</text>
+        <text wx:else>注册中...</text>
+      </button>
+    </view>
+  </view>
+
 </view>

@@ -1,119 +1,287 @@
-/* pages/login/login.wxss */
+/* pages/login/login.wxss - 微信风格授权登录 */
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(160deg, #1B5E20 0%, #2E7D32 40%, #43A047 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(160deg, #1B5E20 0%, #388E3C 40%, #43A047 100%);
   padding: 60rpx 40rpx;
+  box-sizing: border-box;
 }
 
-.logo-area {
+.login-step {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 80rpx;
 }
 
-.logo {
+/* ===== Logo 区 ===== */
+.login-logo-wrap {
+  margin-bottom: 24rpx;
+}
+
+.login-logo {
   width: 160rpx;
   height: 160rpx;
   border-radius: 32rpx;
-  margin-bottom: 24rpx;
-  background-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.15);
+  padding: 16rpx;
 }
 
-.app-name {
+.login-brand {
+  text-align: center;
+  margin-bottom: 60rpx;
+}
+
+.brand-name {
   font-size: 48rpx;
   font-weight: 700;
   color: #ffffff;
+  display: block;
   letter-spacing: 4rpx;
 }
 
-.app-sub {
+.brand-desc {
   font-size: 26rpx;
   color: rgba(255,255,255,0.8);
-  margin-top: 10rpx;
+  display: block;
+  margin-top: 12rpx;
 }
 
+/* ===== 授权卡片 ===== */
 .login-card {
   width: 100%;
-  background-color: #ffffff;
+  background: #ffffff;
   border-radius: 24rpx;
-  padding: 48rpx 40rpx;
-  margin: 0;
-}
-
-.login-title {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #222;
-  display: block;
-  margin-bottom: 12rpx;
-}
-
-.login-desc {
-  font-size: 26rpx;
-  color: #888;
-  display: block;
-  margin-bottom: 48rpx;
-}
-
-.btn-wechat {
-  width: 100%;
-  background-color: #07C160;
-  color: #ffffff;
-  border-radius: 16rpx;
-  padding: 28rpx 0;
-  font-size: 32rpx;
-  font-weight: 600;
-  border: none;
-  margin-bottom: 28rpx;
-}
-
-.btn-wechat-text {
-  color: #ffffff;
-  font-size: 32rpx;
-  font-weight: 600;
-}
-
-.login-tip {
-  font-size: 22rpx;
-  color: #bbb;
-  display: block;
-  text-align: center;
-}
-
-/* 注册表单样式 */
-.register-form {
-  width: 100%;
-  margin-bottom: 32rpx;
-}
-
-.form-item {
+  padding: 56rpx 48rpx;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.15);
+}
+
+.card-icon {
+  font-size: 72rpx;
   margin-bottom: 24rpx;
 }
 
-.form-item .label {
+.card-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 16rpx;
+}
+
+.card-desc {
+  font-size: 26rpx;
+  color: #888;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 48rpx;
+}
+
+.btn-auth {
+  width: 100%;
+  background: #07C160;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  padding: 28rpx 0;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-auth[disabled] {
+  background: #A5D6A7;
+}
+
+.btn-share {
+  width: 100%;
+  margin-top: 20rpx;
+  background: transparent;
+  color: #07C160;
+  font-size: 26rpx;
+  border: 1rpx solid #07C160;
+  border-radius: 16rpx;
+  padding: 20rpx 0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agreement-text {
+  font-size: 22rpx;
+  color: #bbb;
+  margin-top: 32rpx;
+}
+
+/* ===== 信息完善 ===== */
+.profile-header {
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.profile-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+}
+
+.profile-desc {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.8);
+  display: block;
+  margin-top: 12rpx;
+}
+
+.profile-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx;
+  box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.15);
+}
+
+/* 头像 */
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.avatar-btn {
+  width: 140rpx;
+  height: 140rpx;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.avatar-preview {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  background: #f0f0f0;
+  border: 4rpx solid #e0e0e0;
+}
+
+.avatar-preview.has-avatar {
+  border-color: #43A047;
+}
+
+.avatar-hint {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 12rpx;
+}
+
+/* 微信资料预览（profile 步骤） */
+.wechat-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+  padding: 24rpx;
+  background: #f5f5f5;
+  border-radius: 16rpx;
+}
+
+.wechat-preview .avatar-preview {
+  width: 100rpx;
+  height: 100rpx;
+  border-color: #43A047;
+}
+
+.wechat-nickname {
   font-size: 26rpx;
   color: #333;
   font-weight: 500;
-  margin-bottom: 8rpx;
+  margin-top: 12rpx;
 }
 
-.form-item .input {
-  border: 1rpx solid #ddd;
+/* 表单项 */
+.profile-item {
+  margin-bottom: 28rpx;
+}
+
+.profile-label {
+  font-size: 26rpx;
+  color: #555;
+  margin-bottom: 10rpx;
+  display: block;
+  font-weight: 500;
+}
+
+.profile-label.required::after {
+  content: ' *';
+  color: #D32F2F;
+}
+
+.profile-input {
+  width: 100%;
+  height: 80rpx;
+  border: 1rpx solid #e0e0e0;
   border-radius: 12rpx;
-  padding: 20rpx 24rpx;
+  padding: 0 24rpx;
   font-size: 28rpx;
   color: #333;
-  background-color: #f9f9f9;
+  box-sizing: border-box;
+  background: #fafafa;
 }
 
-.form-item .input:focus {
-  border-color: #2E7D32;
-  background-color: #ffffff;
+.profile-input:focus {
+  border-color: #43A047;
+  background: #fff;
+}
+
+.profile-picker {
+  width: 100%;
+  height: 80rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #333;
+  box-sizing: border-box;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+}
+
+.profile-picker.placeholder {
+  color: #bbb;
+}
+
+.btn-save-profile {
+  width: 100%;
+  background: #07C160;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  padding: 26rpx 0;
+  border: none;
+  margin-top: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-save-profile[disabled] {
+  background: #A5D6A7;
 }

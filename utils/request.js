@@ -45,6 +45,7 @@ const _buildSampleActivities = () => {
       participants: ['user_002'],
       activityUnit: 'A公司',
       activityDate: d(0),
+      arrivalTime: '09:00',
       venue: '知嘛健康零号店',
       businessType: '团建',
       peopleCount: 30,
@@ -125,7 +126,7 @@ const _buildSamplePermissionGroups = () => [
       'create_activity', 'edit_activity', 'delete_activity',
       'upload_voucher', 'manage_users', 'manage_departments',
       'view_all_revisions', 'export_data', 'send_notification',
-      'assign_process_owner',
+      'assign_process_owner', 'set_capacity_limit',
     ],
   },
   {

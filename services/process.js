@@ -35,6 +35,13 @@ const confirmStepDone = (activityId, stepId) => {
 };
 
 /**
+ * 撤销环节完成状态（还原为未完成，写入修订日志）
+ */
+const undoStepDone = (activityId, stepId) => {
+  return callCloudFunc('process', { action: 'undoConfirmStep', activityId, stepId });
+};
+
+/**
  * 指派环节负责人
  */
 const assignStepOwner = (activityId, stepId, userId) => {
@@ -46,5 +53,6 @@ module.exports = {
   upsertStep,
   deleteStep,
   confirmStepDone,
+  undoStepDone,
   assignStepOwner,
 };

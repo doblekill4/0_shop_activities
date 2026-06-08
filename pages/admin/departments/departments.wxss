@@ -21,3 +21,141 @@
   color: #888;
   border: 1rpx dashed #ccc;
 }
+
+/* ========== 成员多选弹窗 ========== */
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-dialog {
+  width: 85%;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #222;
+}
+
+.modal-close {
+  font-size: 36rpx;
+  color: #999;
+  padding: 8rpx;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 16rpx 32rpx;
+  max-height: 60vh;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.picker-item:last-child {
+  border-bottom: none;
+}
+
+.picker-item .checkbox {
+  width: 40rpx;
+  height: 40rpx;
+  border: 2rpx solid #ccc;
+  border-radius: 8rpx;
+  margin-right: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #fff;
+  background: #fff;
+}
+
+.picker-item.checked .checkbox {
+  background: #2E7D32;
+  border-color: #2E7D32;
+}
+
+.picker-item.checked .checkbox text {
+  color: #fff;
+}
+
+.picker-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.modal-footer {
+  display: flex;
+  padding: 20rpx 32rpx;
+  border-top: 1rpx solid #eee;
+  gap: 20rpx;
+}
+
+.modal-footer button {
+  flex: 1;
+  font-size: 28rpx;
+  border-radius: 12rpx;
+  padding: 18rpx 0;
+  border: none;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.btn-confirm {
+  background: #2E7D32;
+  color: #fff;
+}
+
+/* 权限组关联 */
+.perm-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 20rpx;
+  margin: 8rpx 0;
+  background: #f9f9f9;
+  border-radius: 10rpx;
+}
+
+.perm-link-label {
+  font-size: 24rpx;
+  color: #888;
+}
+
+.perm-link-value {
+  font-size: 24rpx;
+  color: #2E7D32;
+  font-weight: 500;
+}
+
+.perm-link-value.placeholder {
+  color: #bbb;
+  font-weight: normal;
+}

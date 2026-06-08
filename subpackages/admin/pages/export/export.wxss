@@ -66,6 +66,13 @@
   font-family: monospace;
 }
 
+.clear-date {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #1976D2;
+  text-align: right;
+}
+
 .export-btn {
   margin: 8rpx 24rpx;
   padding: 28rpx 0;

@@ -4,7 +4,7 @@
   <scroll-view scroll-y class="form-scroll">
 
     <view class="edit-banner">
-      <text class="edit-banner-text">🖊 所有修改将自动生成修订记录（不可删改）</text>
+      <text class="edit-banner-text">🖊 修改内容将自动记录到修订日志</text>
     </view>
 
     <!-- 此处内容与 activity-create.wxml 完全一致，实际项目中建议抽取为组件 -->
@@ -18,6 +18,15 @@
         <picker mode="date" value="{{form.activityDate}}" bindchange="onDateChange">
           <view class="form-input picker-value {{!form.activityDate ? 'placeholder' : ''}}">
             {{form.activityDate || '请选择日期'}}
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label required">到店时间</text>
+        <picker mode="time" value="{{form.arrivalTime}}" bindchange="onArrivalTimeChange">
+          <view class="form-input picker-value {{!form.arrivalTime ? 'placeholder' : ''}}">
+            {{form.arrivalTime || '请选择到店时间'}}
           </view>
         </picker>
       </view>
@@ -92,10 +101,21 @@
           </view>
           <view class="form-item">
             <text class="form-label">负责人</text>
-            <picker mode="selector" range="{{userList}}" range-key="name"
+            <!-- 管理员：部门+人员双列选择 -->
+            <picker wx:if="{{canAssignOwner && isAdmin}}" mode="multiSelector" range="{{deptUserRange}}"
+              value="{{item.ownerDeptValue}}"
+              bindchange="onStepOwnerChange"
+              bindcolumnchange="onStepOwnerColumnChange"
+              data-index="{{index}}">
+              <view class="form-input picker-value">{{item.ownerName || '请选择'}}</view>
+            </picker>
+            <!-- 有指派权限但非管理员：单列选择 -->
+            <picker wx:elif="{{canAssignOwner}}" mode="selector" range="{{userList}}" range-key="name"
               value="{{item.ownerIndex}}" bindchange="onStepOwnerChange" data-index="{{index}}">
               <view class="form-input picker-value">{{item.ownerName || '请选择'}}</view>
             </picker>
+            <!-- 无指派权限：只读 -->
+            <view wx:else class="form-input picker-value read-only">{{item.ownerName || '未指派'}}</view>
           </view>
         </view>
       </view>
@@ -124,9 +144,10 @@
           bindinput="onInput" data-field="contactPerson" />
       </view>
       <view class="form-item">
-        <text class="form-label">活动预订人</text>
-        <input class="form-input" value="{{form.bookingPerson}}"
+        <text class="form-label required">活动预订人</text>
+        <input wx:if="{{isAdmin}}" class="form-input" value="{{form.bookingPerson}}"
           bindinput="onInput" data-field="bookingPerson" />
+        <view wx:else class="form-input picker-value">{{form.bookingPerson || '（自动填写）'}}</view>
       </view>
     </view>
 
@@ -172,11 +193,11 @@
       </view>
     </view>
 
-    <!-- 香囊 -->
-    <view class="card form-section sachet-section">
+    <!-- 香囊（仅含香囊关键词时显示） -->
+    <view class="card form-section sachet-section" wx:if="{{showSachet}}">
       <view class="section-header">
-        <text class="section-title">香囊账户确认</text>
-        <text class="warn-tag">⚠⚠ 务必预订前确认！</text>
+        <text class="section-title required">香囊账户确认</text>
+        <text class="warn-tag">⚠ 必选</text>
       </view>
       <view class="sachet-choice">
         <view class="sachet-opt {{form.sachetAccount === 'clinic' ? 'selected clinic' : ''}}"
@@ -192,9 +213,14 @@
 
     <!-- 底部按钮 -->
     <view class="bottom-actions">
-      <button class="btn-primary" style="width:100%;" bindtap="saveEdit" loading="{{saving}}">
+      <button class="btn-primary" style="width:100%;" bindtap="saveEdit" loading="{{saving}}"
+        wx:if="{{originalStatus !== 'draft'}}">
         保存修改
       </button>
+      <block wx:else>
+        <button class="btn-secondary flex-1" bindtap="saveEdit" loading="{{saving}}">保存草稿</button>
+        <button class="btn-primary flex-2" bindtap="submitDraft" loading="{{submitting}}">提交活动</button>
+      </block>
     </view>
 
     <view style="height: 120rpx;" />

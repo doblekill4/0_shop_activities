@@ -1,64 +1,188 @@
-// pages/login/login.js（云开发版）
-const { login, autoLogin } = require('../../utils/auth');
+// pages/login/login.js - 微信风格授权登录 + 群入口自动识别
+const { login, getCurrentUser } = require('../../utils/auth');
+const app = getApp();
 
 Page({
   data: {
+    step: 'auth',       // 'auth' | 'profile'
     loading: false,
-    needsRegister: false,      // 是否需要注册（新用户）
+    saving: false,
+    isEmployee: false,  // 是否从门店群进入（自动识别为员工）
+    fromGroup: false,   // 是否从群聊入口进入
+    avatarUrl: '',
+    nickname: '',
     name: '',
+    employeeId: '',     // 工号
     department: '',
+    departmentIndex: -1,    // picker 选中索引
+    departmentList: [],     // 可选部门列表
+    departmentNames: [],    // 部门名称数组（picker range）
   },
 
   onLoad() {
-    // 登录页不再自动登录，等用户点击按钮
-    // autoLogin 只在 app.js 的 onLaunch 中执行
+    // 等 app.js autoLogin 完成后再判断
+    this._waitForLoginReady();
   },
 
-  // 点击"微信一键登录"按钮
-  async handleLogin() {
-    if (this.data.loading) return;
-
-    // 如果已经在注册模式，验证表单
-    if (this.data.needsRegister) {
-      if (!this.data.name.trim()) {
-        wx.showToast({ title: '请输入姓名', icon: 'none' });
-        return;
-      }
-      if (!this.data.department.trim()) {
-        wx.showToast({ title: '请输入部门', icon: 'none' });
-        return;
-      }
-    }
-
-    this.setData({ loading: true });
-    try {
-      // needsRegister=true 时带 name+department 调用，否则不带（让云端判断是否需要注册）
-      const data = this.data.needsRegister
-        ? { name: this.data.name, department: this.data.department }
-        : {};
-      const user = await login(data);
-      wx.showToast({ title: '登录成功', icon: 'success' });
-      setTimeout(() => {
+  _waitForLoginReady() {
+    if (app.globalData.loginReady) {
+      const user = getCurrentUser();
+      if (user) {
         wx.switchTab({ url: '/pages/activity-list/activity-list' });
-      }, 1000);
+        return;
+      }
+      this._loadDepartments();
+      this._checkGroupEntry();
+    } else {
+      setTimeout(() => this._waitForLoginReady(), 100);
+    }
+  },
+
+  // ===== 获取部门列表 =====
+  async _loadDepartments() {
+    try {
+      // 尝试从云函数获取部门列表
+      const res = await wx.cloud.callFunction({
+        name: 'auth',
+        data: { action: 'listDepartments' },
+      });
+      if (res.result && res.result.code === 0 && Array.isArray(res.result.data)) {
+        const names = res.result.data.map(d => d.name || '');
+        this.setData({
+          departmentList: res.result.data,
+          departmentNames: names,
+        });
+        return;
+      }
     } catch (e) {
-      // 如果是需要注册，显示注册表单
-      if (e === '需要注册' || (typeof e === 'string' && e.includes('注册'))) {
-        this.setData({ needsRegister: true });
-        wx.showToast({ title: '请先完善信息', icon: 'none' });
+      console.warn('[_loadDepartments] 获取部门失败，使用默认列表', e);
+    }
+    // 默认部门列表
+    const defaults = ['运营部', '销售部', '管理部', '外部客户'];
+    this.setData({
+      departmentList: defaults.map(n => ({ name: n })),
+      departmentNames: defaults,
+    });
+  },
+
+  // ===== 检测群入口 =====
+  _checkGroupEntry() {
+    try {
+      const groupInfo = wx.getGroupEnterInfo ? wx.getGroupEnterInfo() : null;
+      if (groupInfo && groupInfo.encryptedData) {
+        // 保存群加密信息，传给云函数解密比对
+        this._groupEncryptedData = groupInfo.encryptedData;
+        this._groupIv = groupInfo.iv;
+        this.setData({ isEmployee: true, fromGroup: true });
+        console.log('[login] 检测到群入口，加密数据已保存');
+      }
+    } catch (e) {
+      console.warn('[login] getGroupEnterInfo 失败', e);
+    }
+  },
+
+  // ===== Step 0: 授权登录 =====
+  async handleAuth() {
+    if (this.data.loading) return;
+    this.setData({ loading: true });
+
+    try {
+      const result = await login({});
+      this._enterApp();
+    } catch (err) {
+      // auth.js 的 reject 返回字符串 '需要注册'，不是 {code:402} 对象
+      const errStr = String(err || '');
+      if (errStr.includes('注册')) {
+        this.setData({ step: 'wechatInfo' });
       } else {
+        console.error('[handleAuth] 登录失败:', err);
         wx.showToast({ title: '登录失败，请重试', icon: 'none' });
       }
-    } finally {
-      this.setData({ loading: false });
+    }
+    this.setData({ loading: false });
+  },
+
+  // ===== Step 1: 完善信息 =====
+
+  // 微信原生头像选择（open-type="chooseAvatar"）
+  onChooseAvatar(e) {
+    const { avatarUrl } = e.detail;
+    if (avatarUrl) {
+      this.setData({ avatarUrl });
     }
   },
 
-  // 输入框变更
-  onNameInput(e) {
-    this.setData({ name: e.detail.value });
+  // Step 1.5: 微信资料获取完毕，进入姓名填写
+  confirmWechatInfo() {
+    if (!this.data.avatarUrl && !this.data.nickname) {
+      wx.showToast({ title: '请点击获取微信头像和昵称', icon: 'none' });
+      return;
+    }
+    this.setData({ step: 'profile' });
   },
-  onDeptInput(e) {
-    this.setData({ department: e.detail.value });
+
+  onNicknameInput(e) { this.setData({ nickname: e.detail.value }); },
+  onNameInput(e)    { this.setData({ name: e.detail.value }); },
+  onEmployeeIdInput(e) { this.setData({ employeeId: e.detail.value }); },
+
+  // 部门选择器
+  onDepartmentChange(e) {
+    const idx = e.detail.value;
+    const dept = this.data.departmentNames[idx];
+    this.setData({ departmentIndex: idx, department: dept || '' });
+  },
+
+  async saveProfile() {
+    const { nickname, name, employeeId, department, avatarUrl, isEmployee } = this.data;
+
+    if (!name.trim()) {
+      wx.showToast({ title: '请填写姓名', icon: 'none' });
+      return;
+    }
+    if (!department) {
+      wx.showToast({ title: '请选择部门', icon: 'none' });
+      return;
+    }
+    if (isEmployee && !employeeId.trim()) {
+      wx.showToast({ title: '员工请填写工号', icon: 'none' });
+      return;
+    }
+    if (this.data.saving) return;
+    this.setData({ saving: true });
+
+    try {
+      // 上传头像
+      let finalAvatarUrl = '';
+      if (avatarUrl && (avatarUrl.startsWith('wxfile://') || avatarUrl.startsWith('http://tmp'))) {
+        try {
+          const cloudPath = `avatars/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+          const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath: avatarUrl });
+          finalAvatarUrl = uploadRes.fileID;
+        } catch (e) {
+          console.warn('头像上传失败', e);
+        }
+      }
+
+      await login({
+        name: name.trim(),
+        nickname: nickname.trim() || name.trim(),
+        employeeId: employeeId.trim(),
+        department: department,
+        avatarUrl: finalAvatarUrl,
+        fromGroup: isEmployee,
+        groupEncryptedData: this._groupEncryptedData || '',
+        groupIv: this._groupIv || '',
+      });
+
+      this._enterApp();
+    } catch (err) {
+      console.error('[saveProfile] 注册失败:', err);
+      wx.showToast({ title: '注册失败，请重试', icon: 'none' });
+    }
+    this.setData({ saving: false });
+  },
+
+  _enterApp() {
+    wx.switchTab({ url: '/pages/activity-list/activity-list' });
   },
 });

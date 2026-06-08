@@ -1,0 +1,105 @@
+<!-- pages/admin/permission-groups/permission-groups.wxml -->
+<view class="admin-page">
+  <scroll-view scroll-y class="admin-scroll">
+
+    <view class="tip-banner">
+      <text>权限组用于控制用户可访问的功能模块。admin 和 user 为系统内置组，不可删除。</text>
+    </view>
+
+    <!-- 权限组卡片 -->
+    <view class="card group-card" wx:for="{{groups}}" wx:key="id">
+      <view class="group-header">
+        <view class="group-info">
+          <text class="group-name">{{item.name}}</text>
+          <text class="group-count">{{item.membersCount}} 人 · {{item.permissionsCount}} 项权限</text>
+        </view>
+        <view class="group-actions">
+          <view class="action-btn" bindtap="editGroup" data-id="{{item.id}}">编辑权限</view>
+          <view class="action-btn" bindtap="manageMembers" data-id="{{item.id}}">成员</view>
+          <view class="action-btn danger" wx:if="{{!item.isSystem}}" bindtap="deleteGroup" data-id="{{item.id}}">删除</view>
+        </view>
+      </view>
+
+      <!-- 权限标签 -->
+      <view class="perm-tags" wx:if="{{item.permissionsCount > 0}}">
+        <text class="perm-tag" wx:for="{{item.permLabels}}" wx:for-item="p" wx:key="*this">{{p}}</text>
+      </view>
+      <view class="perm-tags" wx:else>
+        <text class="perm-empty">暂无权限配置</text>
+      </view>
+
+      <!-- 成员预览 -->
+      <view class="member-chips">
+        <text class="member-chip" wx:for="{{item.members}}" wx:for-item="m" wx:key="userId" wx:if="{{index < 5}}">{{m.name}}</text>
+        <text class="member-chip more" wx:if="{{item.membersCount > 5}}">+{{item.membersCount - 5}}</text>
+      </view>
+    </view>
+
+    <view class="add-group-btn" bindtap="addGroup">
+      <text>+ 新建权限组</text>
+    </view>
+
+  </scroll-view>
+
+  <!-- 编辑弹窗：组名 + 权限开关 -->
+  <view class="modal-mask" wx:if="{{showEditor}}" bindtap="closeEditor">
+    <view class="modal-dialog" catchtap="noop">
+      <view class="modal-header">
+        <text class="modal-title">{{editorId ? '编辑权限组' : '新建权限组'}}</text>
+        <text class="modal-close" bindtap="closeEditor">X</text>
+      </view>
+      <scroll-view scroll-y class="modal-body">
+        <view class="form-item">
+          <text class="label">组名称</text>
+          <input class="input" value="{{editorName}}" bindinput="onEditorName" placeholder="请输入权限组名称" />
+        </view>
+        <view class="form-item">
+          <text class="label">权限设置</text>
+        </view>
+        <view class="perm-toggle-list">
+          <view class="perm-toggle {{item.enabled ? 'on' : 'off'}}"
+                wx:for="{{permList}}" wx:key="key"
+                bindtap="togglePerm" data-key="{{item.key}}">
+            <text class="perm-toggle-label">{{item.label}}</text>
+            <view class="toggle-switch {{item.enabled ? 'active' : ''}}">
+              <view class="toggle-knob {{item.enabled ? 'active' : ''}}"></view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="closeEditor">取消</button>
+        <button class="btn-confirm" bindtap="saveEditor">保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 成员管理弹窗（多选） -->
+  <view class="modal-mask" wx:if="{{showMemberPicker}}" bindtap="closeMemberPicker">
+    <view class="modal-dialog" catchtap="noop">
+      <view class="modal-header">
+        <text class="modal-title">成员管理 - {{pickerGroupName}}</text>
+        <text class="modal-close" bindtap="closeMemberPicker">X</text>
+      </view>
+      <scroll-view scroll-y class="modal-body">
+        <view
+          class="picker-item {{item.inGroup ? 'checked' : ''}}"
+          wx:for="{{pickerUsers}}"
+          wx:key="userId"
+          bindtap="toggleMember"
+          data-user-id="{{item.userId}}"
+        >
+          <view class="checkbox">
+            <text wx:if="{{item.inGroup}}">V</text>
+          </view>
+          <text class="picker-name">{{item.name}}</text>
+        </view>
+      </scroll-view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="closeMemberPicker">取消</button>
+        <button class="btn-confirm" bindtap="saveMembers">确认</button>
+      </view>
+    </view>
+  </view>
+
+</view>

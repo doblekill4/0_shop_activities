@@ -93,6 +93,13 @@ const getGanttData = (startDate, endDate, includePending = false) => {
 };
 
 /**
+ * 获取当前用户的草稿
+ */
+const getMyDraft = () => {
+  return callCloudFunc('activities', { action: 'getMyDraft' });
+};
+
+/**
  * 导出活动数据（云函数生成，返回下载链接）
  * @param {string} format - 'text' | 'excel'
  * @param {Array}  ids    - 要导出的活动 ID 数组
@@ -101,15 +108,26 @@ const exportActivities = (format, ids) => {
   return callCloudFunc('activities', { action: 'export', format, ids });
 };
 
+const getMonthlyCounts = (year, month) => {
+  return callCloudFunc('activities', { action: 'getMonthlyCounts', year, month });
+};
+
+const markCapacityLimit = (date, remove) => {
+  return callCloudFunc('activities', { action: 'markCapacityLimit', date, remove });
+};
+
 module.exports = {
   getActivityList,
   getActivityDetail,
   createActivity,
   updateActivity,
+  getMyDraft,
   deleteActivity,
   getRevisionLog,
   uploadVoucher,
   deleteVoucher,
   getGanttData,
   exportActivities,
+  getMonthlyCounts,
+  markCapacityLimit,
 };

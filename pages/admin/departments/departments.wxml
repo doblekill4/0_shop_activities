@@ -10,7 +10,7 @@
       <view class="group-header">
         <view class="group-info">
           <text class="group-name">{{item.name}}</text>
-          <text class="group-count">{{item.members.length}} 人</text>
+          <text class="group-count">{{item.membersCount}} 人</text>
         </view>
         <view class="group-actions">
           <view class="action-btn" bindtap="editDept" data-id="{{item.id}}">编辑成员</view>
@@ -18,11 +18,21 @@
         </view>
       </view>
 
+      <!-- 关联权限组 -->
+      <view class="perm-link-row">
+        <text class="perm-link-label">权限组</text>
+        <picker mode="selector" range="{{permGroupNames}}" value="{{item.permissionGroupIndex}}" bindchange="onDeptPermChange" data-id="{{item.id}}" data-index="{{index}}">
+          <view class="perm-link-value {{item.permissionGroupIndex < 0 ? 'placeholder' : ''}}">
+            {{item.permissionGroupIndex >= 0 ? permGroupNames[item.permissionGroupIndex] : '选择权限组'}}
+          </view>
+        </picker>
+      </view>
+
       <view class="member-chips">
         <view class="member-chip" wx:for="{{item.members}}" wx:for-item="m" wx:key="userId">
           <text>{{m.name}}</text>
         </view>
-        <view class="member-chip add" bindtap="addMember" data-dept-id="{{item.id}}">
+        <view class="member-chip add" bindtap="addMember" data-id="{{item.id}}">
           <text>＋</text>
         </view>
       </view>
@@ -33,4 +43,33 @@
     </view>
 
   </scroll-view>
+
+  <!-- 成员多选弹窗 -->
+  <view class="modal-mask" wx:if="{{showMemberPicker}}" bindtap="closeMemberPicker">
+    <view class="modal-dialog" catchtap="noop">
+      <view class="modal-header">
+        <text class="modal-title">编辑成员 - {{pickerDeptName}}</text>
+        <text class="modal-close" bindtap="closeMemberPicker">✕</text>
+      </view>
+      <scroll-view scroll-y class="modal-body">
+        <view
+          class="picker-item {{item.inGroup ? 'checked' : ''}}"
+          wx:for="{{pickerUsers}}"
+          wx:key="userId"
+          bindtap="toggleMember"
+          data-user-id="{{item.userId}}"
+        >
+          <view class="checkbox">
+            <text wx:if="{{item.inGroup}}">✓</text>
+          </view>
+          <text class="picker-name">{{item.name}}</text>
+        </view>
+      </scroll-view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="closeMemberPicker">取消</button>
+        <button class="btn-confirm" bindtap="saveMembers">确认</button>
+      </view>
+    </view>
+  </view>
+
 </view>

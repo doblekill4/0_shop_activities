@@ -1,8 +1,29 @@
 // pages/activity-detail/activity-detail.js
 const { getActivityDetail, getRevisionLog, uploadVoucher, deleteVoucher: svcDeleteVoucher, deleteActivity } = require('../../services/activity');
-const { confirmStepDone } = require('../../services/process');
+const { confirmStepDone, undoStepDone } = require('../../services/process');
 const { hasPermission, isAdmin, getCurrentUser } = require('../../utils/auth');
 const { formatDate, getStatusLabel } = require('../../utils/format');
+
+// 字段名 → 中文标签（与 format.js 的 FIELD_LABEL_MAP 保持一致）
+const FIELD_LABEL_MAP = {
+  activityDate:    '活动日期',
+  arrivalTime:     '到店时间',
+  activityUnit:    '活动单位',
+  venue:           '活动地点',
+  peopleCount:     '活动人数',
+  businessType:    '业务体现',
+  venueUsage:      '场地使用',
+  settlementMethod:'结算方式',
+  totalCost:       '费用合计',
+  contactPerson:   '活动对接人',
+  bookingPerson:   '活动预订人',
+  invoiceNeeds:    '发票需求',
+  sachetAccount:  '香囊账户',
+  clientInfo:      '客户信息',
+  venueNeeds:      '场地需求',
+  steps:           '活动流程环节',
+  status:          '活动状态',
+};
 
 Page({
   data: {
@@ -10,9 +31,9 @@ Page({
     activity: {},
     revisions: [],
     voucherTypes: [
-      { type: 'deposit',    label: '订金凭证', uploaded: false, url: '', uploadTime: '', fileID: '' },
-      { type: 'bill',       label: '活动账单', uploaded: false, url: '', uploadTime: '', fileID: '' },
-      { type: 'settlement', label: '结算凭证', uploaded: false, url: '', uploadTime: '', fileID: '' },
+      { type: 'deposit',    label: '订金凭证', vouchers: [], maxCount: 1 },
+      { type: 'bill',       label: '活动账单', vouchers: [], maxCount: 1 },
+      { type: 'settlement', label: '结算凭证', vouchers: [], maxCount: 5 },
     ],
     doneSteps: 0,
     totalSteps: 0,
@@ -20,23 +41,29 @@ Page({
     canEdit: false,
     canDelete: false,
     canExport: false,
-    canUploadVoucher: false,
+    canManageVoucher: false,  // 只有创建人可以上传/删除凭证
     isAdmin: false,
     loading: true,
   },
 
   onLoad(options) {
     const id = options.id;
-    this.setData({
-      activityId: id,
-      canEdit: hasPermission('edit_activity'),
-      canDelete: hasPermission('delete_activity'),
-      canExport: hasPermission('export_data'),
-      canUploadVoucher: hasPermission('upload_voucher'),
-      isAdmin: isAdmin(),
-    });
+    this._firstShow = true;  // 标记首次，避免 onShow 重复加载
+    this.setData({ activityId: id, isAdmin: isAdmin() });
     wx.setNavigationBarTitle({ title: '活动详情' });
     this.loadDetail(id);
+  },
+
+  // 从其他页面返回时自动刷新（如编辑页保存后返回）
+  onShow() {
+    if (this._firstShow) {
+      this._firstShow = false;
+      return;  // 跳过 onLoad 后的首次 onShow
+    }
+    const id = this.data.activityId;
+    if (id) {
+      this.loadDetail(id);
+    }
   },
 
   async loadDetail(id) {
@@ -56,11 +83,24 @@ Page({
 
   _applyDetail(a) {
     const currentUser = getCurrentUser();
-    const statusMap = { confirmed: 'tag-active', completed: 'tag-completed', pending: 'tag-pending' };
+    // 是否是本活动预定人（姓名匹配 或 openid/creatorId 匹配）
+    const isOwner = currentUser && (
+      (currentUser.name && currentUser.name === a.bookingPerson) ||
+      (currentUser.openid && currentUser.openid === a.creatorId)
+    );
+    // 权限 = 权限组赋予 || 是活动预定人
+    const canEdit = hasPermission('edit_activity') || isOwner;
+    const canDelete = hasPermission('delete_activity') || isOwner;
+    const canExport = hasPermission('export_data') || isOwner;
+    const canUploadVchr = hasPermission('upload_voucher') || isOwner;
+    const canManageVchr = isOwner || isAdmin();
 
-    // 处理环节
+    const statusMap = { confirmed: 'tag-active', completed: 'tag-completed', pending: 'tag-pending', settled: 'tag-settled' };
+
+    // 处理环节（统一 id 标识：优先 _id，兼容旧数据）
     const steps = (a.steps || []).map(s => ({
       ...s,
+      id: s._id || s.id || s.tempId || ('step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8)),
       completedAtStr: s.completedAt ? formatDate(s.completedAt, true) : '',
       isCurrentUserOwner: currentUser && s.ownerId === currentUser._id,
     }));
@@ -68,20 +108,32 @@ Page({
     const doneSteps  = steps.filter(s => s.completedAt).length;
     const totalSteps = steps.length;
 
-    // 凭证
-    const voucherMap = {};
-    (a.vouchers || []).forEach(v => { voucherMap[v.type] = v; });
+    // 凭证（支持每种类型多张）
     const voucherTypes = this.data.voucherTypes.map(vt => {
-      const v = voucherMap[vt.type];
-      return v
-        ? { ...vt, uploaded: true, voucherId: v._id, fileID: v.fileID, url: v.fileID, uploadTime: formatDate(v.uploadedAt, true) }
-        : { ...vt, uploaded: false };
+      const vouchers = (a.vouchers || [])
+        .filter(v => v.type === vt.type)
+        .map(v => ({
+          voucherId: v._id,
+          fileID: v.fileID,
+          url: v.fileID,
+          uploadTime: formatDate(v.uploadedAt, true),
+        }));
+      return { ...vt, vouchers };
     });
 
+    // 香囊账户是否显示（与创建/编辑页逻辑一致）
+    const showSachet = (() => {
+      const bizText = (a.businessType || '') + (a.venueUsage || '');
+      const stepsText = (a.steps || []).map(s => (s.stepName || '')).join(' ');
+      return (bizText + ' ' + stepsText).indexOf('香囊') !== -1;
+    })();
+
     this.setData({
+      showSachet,
       activity: {
         ...a,
-        activityDate: formatDate(a.activityDate, true),
+        activityDate: formatDate(a.activityDate),
+        arrivalTime: a.arrivalTime || '',
         statusLabel: getStatusLabel(a.status),
         statusClass: statusMap[a.status] || 'tag-pending',
         steps,
@@ -91,16 +143,82 @@ Page({
       voucherTypes,
       doneSteps,
       totalSteps,
+      canEdit, canDelete, canExport, canUploadVoucher: canUploadVchr,
       progressPct: totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 0,
+      canManageVoucher: canManageVchr,
     });
   },
 
   _applyRevisions(revLog) {
-    // revLog 已经是数组（callCloudFunc 在 mock 模式下已剥掉外层包装）
-    const revisions = (revLog || []).map(r => ({
-      ...r,
-      createdAtStr: formatDate(r.createdAt, true),
-    }));
+    const revisions = (revLog || []).map(r => {
+      const timeStr = formatDate(r.updatedAt || r.createdAt, true);
+      const operator = r.updatedByName || '系统';
+
+      // 流程环节操作（process 云函数生成的 revision，有 action 字段）
+      if (r.action) {
+        const detail = r.detail || {};
+        let summary = '';
+        switch (r.action) {
+          case 'confirmStep':
+            summary = `完成了环节「${detail.stepName || ''}」`;
+            break;
+          case 'undoConfirmStep':
+            summary = `撤销了环节「${detail.stepName || ''}」的完成状态`;
+            break;
+          case 'addStep':
+            summary = `添加了环节「${detail.stepName || ''}」`;
+            break;
+          case 'deleteStep':
+            summary = `删除了环节「${detail.stepName || ''}」`;
+            break;
+          case 'updateStep':
+            summary = `修改了环节「${detail.stepName || ''}」`;
+            break;
+          case 'assignOwner':
+            summary = `将环节「${detail.stepName || ''}」指派给 ${detail.ownerName || ''}`;
+            break;
+          case 'uploadVoucher': {
+            const vlUp = { deposit: '订金凭证', bill: '活动账单', settlement: '结算凭证' };
+            summary = `上传了${vlUp[detail.voucherType] || detail.voucherType || '凭证'}`;
+            break;
+          }
+          case 'deleteVoucher': {
+            const vlDel = { deposit: '订金凭证', bill: '活动账单', settlement: '结算凭证' };
+            summary = `删除了${vlDel[detail.voucherType] || detail.voucherType || '凭证'}`;
+            break;
+          }
+          default:
+            summary = `执行了操作 ${r.action}`;
+        }
+        return { _key: r.updatedAt + '_' + Math.random(), isProcessAction: true, operator, time: timeStr, summary };
+      }
+
+      // 活动编辑操作（activities 云函数生成的 revision，有 changes 数组）
+      const lines = [];
+      (r.changes || []).forEach(c => {
+        const label = FIELD_LABEL_MAP[c.field] || c.field;
+        const oldVal = c.old !== undefined && c.old !== null && String(c.old) !== '[object]'
+          ? String(c.old) : '';
+        const newVal = c.new !== undefined && c.new !== null && String(c.new) !== '[object]'
+          ? String(c.new) : '';
+
+        if (oldVal && newVal) {
+          lines.push(`「${label}」从 ${oldVal} 改为 ${newVal}`);
+        } else if (newVal) {
+          lines.push(`设置了「${label}」为 ${newVal}`);
+        } else if (oldVal) {
+          lines.push(`清空了「${label}」（原值：${oldVal}）`);
+        }
+      });
+
+      return {
+        _key: r.updatedAt + '_' + Math.random(),
+        isProcessAction: false,
+        operator,
+        time: timeStr,
+        summary: lines.join('；') || '修改了活动信息',
+      };
+    });
     this.setData({ revisions });
   },
 
@@ -135,49 +253,127 @@ Page({
     this._loading = false;
   },
 
-  // 上传凭证
-  uploadVoucher(e) {
-    const voucherType = e.currentTarget.dataset.voucherType;
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
+  // 撤销完成
+  undoStepDone(e) {
+    const stepId = e.currentTarget.dataset.stepId;
+    wx.showModal({
+      title: '撤销完成',
+      content: '将该环节恢复为未完成状态？撤销操作也会记录到修订日志。',
       success: (res) => {
-        const filePath = res.tempFiles[0].tempFilePath;
-        this._doUploadVoucher(voucherType, filePath);
-      },
-      fail: () => {
-        // 用户取消选择，不需要处理
+        if (!res.confirm) return;
+        this._doUndoStepDone(stepId);
       },
     });
   },
 
-  // 执行上传（单独提取，避免 async 回调问题）
-  async _doUploadVoucher(voucherType, filePath) {
+  async _doUndoStepDone(stepId) {
     if (this._loading) return;
     this._loading = true;
-    wx.showLoading({ title: '上传中...' });
+    wx.showLoading({ title: '撤销中...' });
     try {
-      console.log('[doUploadVoucher] 开始上传:', voucherType);
-      await uploadVoucher(this.data.activityId, voucherType, filePath);
+      await undoStepDone(this.data.activityId, stepId);
       wx.hideLoading();
-      console.log('[doUploadVoucher] 上传成功');
-      wx.showToast({ title: '上传成功', icon: 'success' });
+      wx.showToast({ title: '已撤销完成', icon: 'success' });
       this.loadDetail(this.data.activityId);
     } catch (e) {
-      console.error('[doUploadVoucher] 上传失败:', e);
+      console.error('[doUndoStepDone] 失败:', e);
       wx.hideLoading();
-      wx.showToast({ title: '上传失败：' + (e.message || e.errMsg || '未知错误'), icon: 'none', duration: 2500 });
+      wx.showToast({ title: '操作失败：' + (e.message || e.errMsg || '未知错误'), icon: 'none', duration: 2500 });
     }
     this._loading = false;
   },
 
-  // 预览凭证
+  // 上传凭证
+  uploadVoucher(e) {
+    const voucherType = e.currentTarget.dataset.voucherType;
+    const vt = this.data.voucherTypes.find(v => v.type === voucherType);
+    if (vt && vt.vouchers.length >= (vt.maxCount || 1)) {
+      wx.showToast({ title: `最多上传 ${vt.maxCount} 张`, icon: 'none' });
+      return;
+    }
+    const remaining = (vt ? vt.maxCount : 1) - (vt ? vt.vouchers.length : 0);
+    wx.chooseMedia({
+      count: Math.min(remaining, 5),
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        // 依次上传选中的图片
+        const files = res.tempFiles;
+        this._uploadBatch(voucherType, files, 0);
+      },
+    });
+  },
+
+  _uploadBatch(voucherType, files, index) {
+    if (index >= files.length) {
+      this.loadDetail(this.data.activityId);
+      return;
+    }
+    this._doUploadVoucher(voucherType, files[index].tempFilePath, () => {
+      this._uploadBatch(voucherType, files, index + 1);
+    });
+  },
+
+  // 执行上传（单独提取，避免 async 回调问题）
+  async _doUploadVoucher(voucherType, filePath, callback) {
+    if (this._loading && !callback) return;
+    if (!callback) this._loading = true;
+    wx.showLoading({ title: '上传中...' });
+    try {
+      await uploadVoucher(this.data.activityId, voucherType, filePath);
+      wx.hideLoading();
+      if (callback) { callback(); return; }
+      wx.showToast({ title: '上传成功', icon: 'success' });
+      this.loadDetail(this.data.activityId);
+    } catch (e) {
+      wx.hideLoading();
+      wx.showToast({ title: '上传失败', icon: 'none' });
+      if (callback) { this.loadDetail(this.data.activityId); return; }
+    }
+    if (!callback) this._loading = false;
+  },
+
+  // 预览凭证（真机调试非开发者无法直接用 getTempFileURL，改用 downloadFile）
   previewVoucher(e) {
     const fileID = e.currentTarget.dataset.fileId;
     if (!fileID) return;
-    // 微信基础库 2.0+ 支持直接用 cloud:// 路径预览
-    wx.previewImage({ current: fileID, urls: [fileID] });
+    // 非云存储路径直接预览
+    if (!fileID.startsWith('cloud://')) {
+      wx.previewImage({ current: fileID, urls: [fileID] });
+      return;
+    }
+    // 先尝试 downloadFile → 本地临时路径预览（权限要求更低）
+    wx.showLoading({ title: '加载图片...' });
+    wx.cloud.downloadFile({
+      fileID: fileID,
+      success: (res) => {
+        wx.hideLoading();
+        if (res.tempFilePath) {
+          wx.previewImage({ current: res.tempFilePath, urls: [res.tempFilePath] });
+        } else {
+          wx.showToast({ title: '预览失败，请重试', icon: 'none' });
+        }
+      },
+      fail: () => {
+        // downloadFile 不可用，尝试 getTempFileURL 兜底
+        wx.cloud.getTempFileURL({
+          fileList: [fileID],
+          success: (r) => {
+            wx.hideLoading();
+            const item = r.fileList && r.fileList[0];
+            if (item && item.tempFileURL && item.status === 0) {
+              wx.previewImage({ current: item.tempFileURL, urls: [item.tempFileURL] });
+            } else {
+              wx.showToast({ title: '预览失败，请重试', icon: 'none' });
+            }
+          },
+          fail: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '预览失败，请重试', icon: 'none' });
+          },
+        });
+      },
+    });
   },
 
   // 删除凭证
@@ -254,12 +450,18 @@ Page({
 
   // 执行删除（单独方法，避免 async success 回调问题）
   async _doDeleteActivity() {
+    if (this._loading) return;
+    this._loading = true;
+    wx.showLoading({ title: '删除中...' });
     try {
       await deleteActivity(this.data.activityId);
+      wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 1200);
     } catch (e) {
+      wx.hideLoading();
       wx.showToast({ title: '删除失败', icon: 'none' });
     }
+    this._loading = false;
   },
 });

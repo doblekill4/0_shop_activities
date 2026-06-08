@@ -29,6 +29,14 @@
     </view>
 
     <view class="card">
+      <text class="section-title">日期筛选</text>
+      <picker mode="date" value="{{filterDate}}" bindchange="onDateChange">
+        <view class="form-input picker-value">{{filterDate || '全部日期'}}</view>
+      </picker>
+      <view class="clear-date" wx:if="{{filterDate}}" bindtap="clearDate">显示全部</view>
+    </view>
+
+    <view class="card">
       <text class="section-title">选择活动</text>
       <view class="select-all-row">
         <text>全选</text>

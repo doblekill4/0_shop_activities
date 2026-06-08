@@ -1,0 +1,48 @@
+<!-- pages/activity-detail/notification-sheet.wxml - 通知弹窗 -->
+<view class="notif-page" bindtap="close">
+  <view class="notif-sheet" catchtap="">
+    <view class="notif-header">
+      <text class="notif-title">发送通知</text>
+      <text class="notif-close" bindtap="close">✕</text>
+    </view>
+
+    <view class="notif-body">
+      <!-- 活动信息 -->
+      <view class="notif-activity">
+        <text class="notif-label">活动</text>
+        <text class="notif-value">{{activity.activityUnit || '—'}}</text>
+        <text class="notif-date">{{activity.activityDate || ''}}</text>
+      </view>
+
+      <!-- 环节负责人 -->
+      <view class="notif-section" wx:if="{{activity.stepOwners.length > 0}}">
+        <text class="notif-label">环节负责人</text>
+        <view class="owner-list">
+          <view class="owner-chip" wx:for="{{activity.stepOwners}}" wx:key="stepName">
+            <text>{{item.name}}（{{item.stepName}}）</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 订阅消息授权 -->
+      <view class="notif-section">
+        <text class="notif-label">消息订阅</text>
+        <view class="subscribe-card {{subscribed ? 'done' : ''}}">
+          <text wx:if="{{subscribed}}">✅ 已授权接收活动提醒</text>
+          <text wx:else>授权后可接收活动状态变更提醒</text>
+        </view>
+        <button class="btn-sub" bindtap="requestSub" disabled="{{subscribed}}">
+          {{subscribed ? '已授权' : '授权订阅消息'}}
+        </button>
+      </view>
+    </view>
+
+    <!-- 底部按钮 -->
+    <view class="notif-footer">
+      <button class="btn-cancel" bindtap="close">取消</button>
+      <button class="btn-send" bindtap="sendNotification" loading="{{sending}}">
+        发送通知
+      </button>
+    </view>
+  </view>
+</view>

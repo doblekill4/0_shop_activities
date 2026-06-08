@@ -6,6 +6,79 @@
   background: #f5f5f5;
 }
 
+/* 日期筛选行 */
+.date-filter-row {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  background: #ffffff;
+  gap: 16rpx;
+}
+
+.date-picker-chip {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 20rpx;
+  background: #f5f5f5;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.date-picker-chip.active {
+  background: #E8F5E9;
+  border-color: #2E7D32;
+  color: #2E7D32;
+}
+
+.date-chip-icon { font-size: 24rpx; }
+
+.date-chip-clear {
+  margin-left: 4rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: #C8E6C9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  color: #2E7D32;
+}
+
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 20rpx;
+  background: #f5f5f5;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.filter-chip.active {
+  background: #E3F2FD;
+  border-color: #1565C0;
+  color: #1565C0;
+}
+
+.filter-chip.active .date-chip-clear {
+  background: #BBDEFB;
+  color: #1565C0;
+}
+
+.clear-filter-chip {
+  padding: 10rpx 20rpx;
+  background: #FFF3E0;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: #E65100;
+}
+
 /* 搜索栏 */
 .search-bar {
   display: flex;
@@ -138,40 +211,59 @@
 
 .people-count { font-size: 22rpx; color: #999; }
 
-/* 卡片正文 */
-.card-body {
-  margin: 12rpx 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.info-row {
+/* 场地行 */
+.venue-row {
   display: flex;
   align-items: flex-start;
   gap: 10rpx;
+  margin: 12rpx 0;
 }
 
 .info-label { font-size: 24rpx; }
 .info-value  { font-size: 26rpx; color: #444; flex: 1; }
 
-/* 环节进度 */
-.steps-preview {
+/* 活动环节列表 */
+.steps-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8rpx;
-  margin: 8rpx 0;
+  flex-direction: column;
+  gap: 6rpx;
+  margin: 8rpx 0 12rpx;
 }
 
-.step-dot {
-  width: 16rpx;
-  height: 16rpx;
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+/* 环节进度圆点 */
+.step-progress-dot {
+  width: 14rpx;
+  height: 14rpx;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.step-dot.done  { background: #2E7D32; }
-.step-dot.doing { background: #F57C00; }
-.step-dot.todo  { background: #cccccc; }
+.step-progress-dot.done  { background: #2E7D32; }
+.step-progress-dot.doing { background: #F57C00; }
+.step-progress-dot.todo  { background: #d0d0d0; }
+
+/* 环节名称 */
+.step-name {
+  font-size: 24rpx;
+  color: #444;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 环节时间 */
+.step-time {
+  font-size: 22rpx;
+  color: #aaa;
+  flex-shrink: 0;
+}
 
 /* 凭证状态 */
 .voucher-row {
@@ -220,3 +312,9 @@
   margin-top: 8rpx;
   display: block;
 }
+
+/* 状态标签（与 activity-detail 保持一致） */
+.tag-active    { background: #E8F5E9; color: #2E7D32; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+.tag-completed { background: #E3F2FD; color: #1565C0; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+.tag-pending   { background: #FFF3E0; color: #E65100; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+.tag-settled   { background: #F3E5F5; color: #7B1FA2; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }

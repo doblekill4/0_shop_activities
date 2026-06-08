@@ -49,12 +49,40 @@ const timeToMinutes = (timeStr) => {
 };
 
 /**
- * Generate revision summary (for revision log display)
- * @param {Array} changes - [{field, oldVal, newVal}]
+ * Field name → Chinese label mapping (for revision log display)
+ */
+const FIELD_LABEL_MAP = {
+  activityDate:    '活动日期',
+  arrivalTime:     '到店时间',
+  activityUnit:    '活动单位',
+  venue:           '活动地点',
+  peopleCount:     '活动人数',
+  businessType:    '业务体现',
+  venueUsage:      '场地使用',
+  settlementMethod:'结算方式',
+  totalCost:       '费用合计',
+  contactPerson:   '活动对接人',
+  bookingPerson:   '活动预订人',
+  invoiceNeeds:    '发票需求',
+  sachetAccount:  '香囊账户',
+  clientInfo:      '客户信息',
+  venueNeeds:      '场地需求',
+  steps:           '活动流程环节',
+  status:          '活动状态',
+};
+
+/**
+ * Generate human-readable revision summary
+ * @param {Array} changes - [{field, old, new}]
  */
 const buildRevisionSummary = (changes) => {
   if (!Array.isArray(changes) || !changes.length) return '无变更';
-  return changes.map(c => `【${c.field}】${c.old || ''} → ${c.new || ''}`).join('；');
+  return changes.map(c => {
+    const label = FIELD_LABEL_MAP[c.field] || c.field;
+    const oldStr = c.old !== undefined && c.old !== null ? String(c.old) : '—';
+    const newStr = c.new !== undefined && c.new !== null ? String(c.new) : '—';
+    return `【${label}】${oldStr} → ${newStr}`;
+  }).join('；');
 };
 
 /**
@@ -71,9 +99,10 @@ const truncate = (str, maxLen = 20) => {
 const ACTIVITY_STATUS_LABEL = {
   draft:     '草稿',
   pending:   '待确认',
-  confirmed: '正式活动',
+  confirmed: '已确认',
   completed: '已完成',
   cancelled: '已取消',
+  settled:   '已结算',
 };
 
 const getStatusLabel = (status) => ACTIVITY_STATUS_LABEL[status] || status;

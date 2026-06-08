@@ -5,6 +5,7 @@ const db = cloud.database();
 const _ = db.command;
 
 exports.main = async (event, context) => {
+  console.log('[admin] event:', JSON.stringify(event));
   const wxContext = cloud.getWXContext();
   const openid = wxContext.OPENID;
 
@@ -54,9 +55,15 @@ async function getPermissionGroups() {
 }
 
 async function createPermissionGroup(data) {
+  console.log('[createPermissionGroup] 入参 data:', JSON.stringify(data));
+  if (!data || typeof data !== 'object') {
+    return { code: -1, message: 'createPermissionGroup: data 参数无效' };
+  }
   const now = new Date();
   const doc = { ...data, createdAt: now, updatedAt: now };
+  console.log('[createPermissionGroup] 写入 doc:', JSON.stringify(doc));
   const res = await db.collection('permission_groups').add(doc);
+  console.log('[createPermissionGroup] 写入成功 _id:', res._id);
   return { code: 0, data: { id: res._id }, message: '创建成功' };
 }
 
@@ -82,9 +89,15 @@ async function getDepartments() {
 }
 
 async function createDepartment(data) {
+  console.log('[createDepartment] 入参 data:', JSON.stringify(data));
+  if (!data || typeof data !== 'object') {
+    return { code: -1, message: 'createDepartment: data 参数无效' };
+  }
   const now = new Date();
   const doc = { ...data, createdAt: now, updatedAt: now };
+  console.log('[createDepartment] 写入 doc:', JSON.stringify(doc));
   const res = await db.collection('departments').add(doc);
+  console.log('[createDepartment] 写入成功 _id:', res._id);
   return { code: 0, data: { id: res._id }, message: '创建成功' };
 }
 

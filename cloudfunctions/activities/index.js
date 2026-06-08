@@ -33,8 +33,16 @@ exports.main = async (event, context) => {
         return await deleteVoucher(event, openid);
       case 'gantt':
         return await getGanttData(event, openid);
+      case 'getMyDraft':
+        return await getMyDraft(event, openid);
       case 'export':
         return await exportActivities(event, openid);
+      case 'getMonthlyCounts':
+        return await getMonthlyCounts(event);
+      case 'markCapacityLimit':
+        return await markCapacityLimit(event, openid);
+      case 'getCapacityLimits':
+        return await getCapacityLimits(event);
       default:
         return { code: -1, message: '未知操作' };
     }
@@ -46,13 +54,16 @@ exports.main = async (event, context) => {
 
 /* ========== 活动列表 ========== */
 async function getActivityList(event, openid) {
-  const { status, sort, page = 1, pageSize = 20 } = event;
+  const { status, sort, page = 1, pageSize = 20, filterDate, filterDateMode } = event;
   const userInfo = await getUserInfo(openid);
 
   console.log('[getActivityList] userInfo:', userInfo);
   console.log('[getActivityList] openid:', openid);
 
   let query = db.collection('activities');
+
+  // 排除系统文档
+  query = query.where({ _id: _.neq('_system_global_rules') });
 
   // 管理员/经理看全部，普通用户才做权限过滤
   if (userInfo.role !== 'admin' && userInfo.role !== 'manager') {
@@ -72,25 +83,42 @@ async function getActivityList(event, openid) {
 
   if (status) {
     query = query.where({ status });
+  } else {
+    // 公共列表默认排除草稿
+    query = query.where({ status: _.neq('draft') });
+  }
+
+  // 日期筛选（云函数层，保证分页准确）
+  if (filterDateMode) {
+    if (filterDateMode === 'specific' && filterDate) {
+      query = query.where({ activityDate: filterDate });
+    } else if (filterDateMode === 'today') {
+      query = query.where({ activityDate: filterDate });
+    } else if (filterDateMode === 'todayAndAfter') {
+      query = query.where({ activityDate: _.gte(filterDate) });
+    }
   }
 
   const countRes = await query.count();
   const total = countRes.total;
 
-  let orderByField = 'activityDate';
-  let orderDirection = 'asc';
-  if (sort === 'date_asc,first_step_asc') {
-    orderByField = 'activityDate';
-    orderDirection = 'asc';
-  }
-
   const res = await query
-    .orderBy(orderByField, orderDirection)
+    .orderBy('activityDate', 'asc')
+    .orderBy('arrivalTime', 'asc')
     .skip((page - 1) * pageSize)
-    .limit(pageSize)
+    .limit(pageSize + 1)  // 多取1条，补偿可能被过滤的系统文档
     .get();
 
-  return { code: 0, data: { list: res.data, total }, message: 'success' };
+  // 过滤系统文档，动态计算状态
+  const list = res.data
+    .filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'))
+    .map(a => {
+      a.status = computeStatusFromVouchers(a.vouchers, a.status);
+      return a;
+    })
+    .slice(0, pageSize);
+
+  return { code: 0, data: { list, total }, message: 'success' };
 }
 
 /* ========== 活动详情 ========== */
@@ -98,7 +126,32 @@ async function getActivityDetail(event, openid) {
   const { id } = event;
   const res = await db.collection('activities').doc(id).get();
   if (!res.data) return { code: 404, message: '活动不存在' };
+  // 动态计算状态，覆盖数据库中可能过时的 status 字段
+  res.data.status = computeStatusFromVouchers(res.data.vouchers, res.data.status);
   return { code: 0, data: res.data, message: 'success' };
+}
+
+/* ========== 获取当前用户的草稿 ========== */
+async function getMyDraft(event, openid) {
+  try {
+    const res = await db.collection('activities')
+      .where({ creatorId: openid, status: 'draft' })
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (res.data && res.data.length > 0) {
+      const draft = res.data[0];
+      return {
+        code: 0,
+        data: { id: draft._id, ...draft },
+        message: 'success',
+      };
+    }
+    return { code: 0, data: null, message: '无草稿' };
+  } catch (e) {
+    console.error('[getMyDraft] 失败', e);
+    return { code: -1, message: '查询失败' };
+  }
 }
 
 /* ========== 新建活动（使用 set() 绕过 add() bug） ========== */
@@ -106,6 +159,22 @@ async function createActivity(event, openid) {
   const userInfo = await getUserInfo(openid);
   const data = event.data;
   if (!data) return { code: -1, message: '提交数据为空' };
+
+  // 检查接待上限：非草稿提交时，检查当天是否已达接待上限
+  if (data.status !== 'draft' && data.activityDate) {
+    try {
+      const limitDoc = await db.collection('activities').doc('_limit_' + data.activityDate).get().catch(() => null);
+      if (limitDoc && limitDoc.data) {
+        const hasPower = userInfo.role === 'admin' || (userInfo.permissions || []).includes('set_capacity_limit');
+        if (!hasPower) {
+          return { code: -1, message: '当天已达接待上限，请联系店长' };
+        }
+        if (!data._forceSubmit) {
+          return { code: 1, message: '当天已达接待上限，是否确认提交？' };
+        }
+      }
+    } catch (e) { /* 忽略 */ }
+  }
 
   console.log('[createActivity] 开始，接收字段数:', Object.keys(data).length);
 
@@ -119,6 +188,7 @@ async function createActivity(event, openid) {
   const cleanDoc = {};
 
   cleanDoc.activityDate   = (data.activityDate || '').toString();
+  cleanDoc.arrivalTime    = (data.arrivalTime || '').toString();
   cleanDoc.activityUnit   = (data.activityUnit || '').toString();
   cleanDoc.venue         = (data.venue || '').toString();
   cleanDoc.peopleCount   = parseInt(data.peopleCount) || 0;
@@ -156,7 +226,16 @@ async function createActivity(event, openid) {
     } catch (e) { console.warn('[createActivity] venueNeeds 拷贝失败', e); }
   }
   if (data.steps && Array.isArray(data.steps) && data.steps.length > 0) {
-    try { cleanDoc.steps = JSON.parse(JSON.stringify(data.steps)); } catch (e) {}
+    try {
+      const steps = JSON.parse(JSON.stringify(data.steps));
+      // 为每个步骤生成唯一 _id，确保后续流程操作（确认完成等）可精确识别
+      steps.forEach(s => {
+        if (!s._id) {
+          s._id = 'step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+        }
+      });
+      cleanDoc.steps = steps;
+    } catch (e) { console.warn('[createActivity] steps 拷贝失败', e); }
   }
 
   console.log('[createActivity] cleanDoc 字段数:', Object.keys(cleanDoc).length);
@@ -271,24 +350,43 @@ async function addVoucher(event, openid) {
 
   console.log('[addVoucher] 写入成功');
 
-  // 自动检查：如果订金、结算、账单三种凭证都已上传，自动将状态改为 confirmed
-  try {
-    const updatedRes = await db.collection('activities').doc(activityId).get();
-    const allVouchers = updatedRes.data.vouchers || [];
-    const hasDeposit    = allVouchers.some(v => v.type === 'deposit');
-    const hasSettlement = allVouchers.some(v => v.type === 'settlement');
-    const hasBill       = allVouchers.some(v => v.type === 'bill');
-    if (hasDeposit && hasSettlement && hasBill) {
-      await db.collection('activities').doc(activityId).update({
-        data: { status: 'confirmed', updatedAt: new Date() }
-      });
-      console.log('[addVoucher] 三种凭证已齐，状态自动变更为 confirmed');
-    }
-  } catch (e) {
-    console.warn('[addVoucher] 自动确认状态失败（非致命）:', e);
-  }
+  // 记录修订日志
+  await addVoucherRevisionLog(activityId, openid, 'uploadVoucher', type);
+
+  // 动态更新状态（根据凭证情况）
+  await updateActivityStatus(activityId);
 
   return { code: 0, data: voucher, message: '上传成功' };
+}
+
+/* ========== 动态更新活动状态（根据凭证情况） ========== */
+async function updateActivityStatus(activityId) {
+  try {
+    const res = await db.collection('activities').doc(activityId).get();
+    if (!res.data) return;
+
+    const vouchers = res.data.vouchers || [];
+    const hasSettlement = vouchers.some(v => v.type === 'settlement');
+    const hasDeposit    = vouchers.some(v => v.type === 'deposit');
+
+    let newStatus = res.data.status;
+    if (hasSettlement) {
+      newStatus = 'settled';    // 有结算凭证 → 已结算
+    } else if (hasDeposit) {
+      newStatus = 'confirmed';  // 有订金凭证 → 已确认
+    } else {
+      newStatus = 'pending';    // 无凭证 → 待确认
+    }
+
+    if (newStatus !== res.data.status) {
+      await db.collection('activities').doc(activityId).update({
+        data: { status: newStatus, updatedAt: new Date() }
+      });
+      console.log('[updateActivityStatus]', res.data.status, '→', newStatus);
+    }
+  } catch (e) {
+    console.warn('[updateActivityStatus] 失败（非致命）：', e);
+  }
 }
 
 /* ========== 删除凭证 ========== */
@@ -315,6 +413,12 @@ async function deleteVoucher(event, openid) {
     }
   });
 
+  // 记录修订日志
+  await addVoucherRevisionLog(activityId, openid, 'deleteVoucher', voucher.type);
+
+  // 动态更新状态（删除凭证后可能需要回退）
+  await updateActivityStatus(activityId);
+
   return { code: 0, message: '删除成功' };
 }
 
@@ -325,14 +429,20 @@ async function getGanttData(event, openid) {
     activityDate: _.gte(startDate).and(_.lte(endDate)),
   };
   if (!includePending) {
-    whereClause.status = 'confirmed';
+    // 默认：已确认 + 已结算
+    whereClause.status = _.and(_.in(['confirmed', 'settled']), _.neq('draft'));
+  } else {
+    // 开启开关：追加待确认，草稿始终排除
+    whereClause.status = _.neq('draft');
   }
   const res = await db.collection('activities')
     .where(whereClause)
     .orderBy('activityDate', 'asc')
+    .orderBy('arrivalTime', 'asc')
     .get();
 
-  return { code: 0, data: res.data, message: 'success' };
+  const data = res.data.filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'));
+  return { code: 0, data, message: 'success' };
 }
 
 /* ========== 导出 ========== */
@@ -345,6 +455,23 @@ async function exportActivities(event, openid) {
 }
 
 /* ========== 工具函数 ========== */
+
+/**
+ * 根据凭证列表动态计算活动状态
+ * 优先级：settlement > deposit > 默认 pending
+ * 注意：已结算 > 已确认（有订金）> 待确认（无凭证）
+ */
+function computeStatusFromVouchers(vouchers, existingStatus) {
+  // 草稿状态保持不变
+  if (existingStatus === 'draft') return 'draft';
+  if (!vouchers || !Array.isArray(vouchers)) return 'pending';
+  const hasSettlement = vouchers.some(v => v && v.type === 'settlement');
+  const hasDeposit    = vouchers.some(v => v && v.type === 'deposit');
+  if (hasSettlement) return 'settled';
+  if (hasDeposit)    return 'confirmed';
+  return 'pending';
+}
+
 async function getUserInfo(openid) {
   if (!openid) {
     console.warn('[getUserInfo] openid is empty');
@@ -364,13 +491,180 @@ async function getUserInfo(openid) {
   }
 }
 
+/**
+ * 凭证操作写入修订日志
+ */
+async function addVoucherRevisionLog(activityId, openid, action, voucherType) {
+  try {
+    const userInfo = await getUserInfo(openid);
+    const revision = {
+      action,
+      updatedBy: openid,
+      updatedByName: userInfo.name || '未知用户',
+      updatedAt: new Date(),
+      detail: { voucherType },
+    };
+    await db.collection('activities').doc(activityId).update({
+      data: {
+        revisionLog: db.command.push(revision),
+      }
+    });
+  } catch (e) {
+    console.error('[addVoucherRevisionLog] error', e);
+  }
+}
+
+// 系统/内部字段，不应出现在修订日志中
+const SYSTEM_FIELDS = new Set([
+  '_id', 'creatorId', 'creatorName', 'createdAt', 'updatedAt',
+  'participants', 'vouchers', 'revisionLog', 'status',
+]);
+
 function diffObject(oldObj, newObj) {
   const changes = [];
-  const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+  const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
   allKeys.forEach(key => {
-    if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
-      changes.push({ field: key, old: oldObj[key], new: newObj[key] });
+    // 跳过系统内部字段
+    if (SYSTEM_FIELDS.has(key)) return;
+    const oldVal = oldObj ? oldObj[key] : undefined;
+    const newVal = newObj ? newObj[key] : undefined;
+
+    // steps 数组：逐环节比较，生成可读变更
+    if (key === 'steps' && Array.isArray(oldVal) && Array.isArray(newVal)) {
+      const maxLen = Math.max(oldVal.length, newVal.length);
+      for (let i = 0; i < maxLen; i++) {
+        const oldStep = oldVal[i];
+        const newStep = newVal[i];
+        if (!oldStep && newStep) {
+          changes.push({ field: `环节[${i + 1}]`, old: '', new: `新增「${newStep.stepName || ''}」` });
+        } else if (oldStep && !newStep) {
+          changes.push({ field: `环节[${i + 1}]`, old: `「${oldStep.stepName || ''}」`, new: '已删除' });
+        } else if (oldStep && newStep) {
+          // 逐字段比较
+          const stepFields = ['stepName', 'startTime', 'endTime', 'ownerName'];
+          stepFields.forEach(f => {
+            const ov = oldStep[f] || '', nv = newStep[f] || '';
+            if (ov !== nv) {
+              const label = { stepName: '名称', startTime: '开始时间', endTime: '结束时间', ownerName: '负责人' }[f] || f;
+              changes.push({ field: `环节「${newStep.stepName || oldStep.stepName || (i + 1)}」${label}`, old: ov || '—', new: nv || '—' });
+            }
+          });
+        }
+      }
+      return;
+    }
+
+    // clientInfo / venueNeeds 对象：逐字段展开
+    if ((key === 'clientInfo' || key === 'venueNeeds') && JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      const objKeys = new Set([...Object.keys(oldVal || {}), ...Object.keys(newVal || {})]);
+      const labels = {
+        ethnicity: '民族/宗教', age: '年龄', dietaryRestrictions: '食物禁忌',
+        specialRequirements: '接待需求', build: '搭建', rehearsal: '预演',
+        power: '接电', mainVisual: '主视觉', filming: '拍摄/直播',
+      };
+      objKeys.forEach(f => {
+        const ov = (oldVal || {})[f], nv = (newVal || {})[f];
+        const ovStr = typeof ov === 'boolean' ? (ov ? '是' : '否') : (ov || '');
+        const nvStr = typeof nv === 'boolean' ? (nv ? '是' : '否') : (nv || '');
+        if (ovStr !== nvStr) {
+          changes.push({ field: `${labels[f] || f}`, old: ovStr || '—', new: nvStr || '—' });
+        }
+      });
+      return;
+    }
+
+    // 其他对象/数组：简单摘要
+    const isObj = v => v && typeof v === 'object';
+    if (isObj(oldVal) || isObj(newVal)) {
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        let oldStr = isObj(oldVal) ? (Array.isArray(oldVal) ? `${oldVal.length}项` : '已设置') : String(oldVal);
+        let newStr = isObj(newVal) ? (Array.isArray(newVal) ? `${newVal.length}项` : '已设置') : String(newVal);
+        changes.push({ field: key, old: oldStr, new: newStr });
+      }
+    } else if (oldVal !== newVal) {
+      changes.push({ field: key, old: oldVal, new: newVal });
     }
   });
   return changes;
+}
+
+/* ========== 接待上限标记 ========== */
+async function markCapacityLimit(event, openid) {
+  const { date, remove } = event;
+  const userInfo = await getUserInfo(openid);
+  if (!userInfo || userInfo.role !== 'admin') {
+    if (!(userInfo && userInfo.permissions || []).includes('set_capacity_limit')) {
+      return { code: 403, message: '无权限' };
+    }
+  }
+  try {
+    const limitDocId = '_limit_' + date;
+    if (remove) {
+      try { await db.collection('activities').doc(limitDocId).remove(); } catch (e) {}
+      return { code: 0, message: '已取消接待上限标记' };
+    }
+    // 存入 activities 集合，_id 前缀 _limit_ 区分
+    await db.collection('activities').doc(limitDocId).set({
+      data: { date, markedBy: openid, markedByName: userInfo.name, markedAt: new Date() }
+    });
+    return { code: 0, message: '已标记为接待上限' };
+  } catch (e) {
+    console.error('[markCapacityLimit] 失败', e.errCode, e.message);
+    return { code: -1, message: '操作失败：' + (e.message || '') };
+  }
+}
+
+async function getCapacityLimits(event) {
+  const { year, month } = event;
+  try {
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    const startDate = `${ym}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${ym}-${String(endDay).padStart(2, '0')}`;
+    const res = await db.collection('activities')
+      .where({ _id: _.gte('_limit_' + startDate).and(_.lte('_limit_' + endDate + 'z')) })
+      .get();
+    return { code: 0, data: (res.data || []).filter(d => d.date).map(d => d.date), message: 'success' };
+  } catch (e) {
+    return { code: 0, data: [], message: 'success' };
+  }
+}
+
+/* ========== 月度活动统计（日历用） ========== */
+async function getMonthlyCounts(event) {
+  const { year, month } = event;
+  const ym = `${year}-${String(month).padStart(2, '0')}`;
+  // 获取当月所有活动（排除草稿和系统文档），按日期分组统计
+  const startDate = `${ym}-01`;
+  const endDay = new Date(year, month, 0).getDate();
+  const endDate = `${ym}-${String(endDay).padStart(2, '0')}`;
+
+  const res = await db.collection('activities')
+    .where({
+      activityDate: _.gte(startDate).and(_.lte(endDate)),
+      status: _.neq('draft'),
+    })
+    .field({ activityDate: true, peopleCount: true })
+    .limit(1000)
+    .get();
+
+  const countMap = {};      // { date: count }
+  const peopleMap = {};     // { date: totalPeople }
+  res.data.forEach(a => {
+    if (!String(a._id).startsWith('_system_')) {
+      countMap[a.activityDate] = (countMap[a.activityDate] || 0) + 1;
+      peopleMap[a.activityDate] = (peopleMap[a.activityDate] || 0) + (a.peopleCount || 0);
+    }
+  });
+
+  // 获取当月接待上限标记（存于 activities 集合，_id 前缀 _limit_）
+  let limits = [];
+  try {
+    const lRes = await db.collection('activities')
+      .where({ _id: _.gte('_limit_' + startDate).and(_.lte('_limit_' + endDate + 'z')) })
+      .get();
+    limits = (lRes.data || []).filter(d => d.date).map(d => d.date);
+  } catch (e) { /* 忽略 */ }
+
+  return { code: 0, data: { counts: countMap, people: peopleMap, limits }, message: 'success' };
 }

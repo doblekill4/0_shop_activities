@@ -98,6 +98,7 @@ App({
       EXPORT_DATA: 'export_data',
       SEND_NOTIFICATION: 'send_notification',
       ASSIGN_PROCESS_OWNER: 'assign_process_owner',
+      SET_CAPACITY_LIMIT: 'set_capacity_limit',
     },
   },
 });

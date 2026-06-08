@@ -12,6 +12,7 @@ const ALL_PERMS = [
   { key: 'export_data',        label: '导出数据' },
   { key: 'send_notification',  label: '发送通知' },
   { key: 'assign_process_owner', label: '指派负责人' },
+  { key: 'set_capacity_limit', label: '接待上限更改' },
 ];
 
 Page({

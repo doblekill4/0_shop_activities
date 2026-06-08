@@ -89,6 +89,15 @@
   font-weight: 600;
 }
 
+.auto-target-hint {
+  background: #FFF8E1;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  font-size: 24rpx;
+  color: #F57F17;
+  margin-top: 8rpx;
+}
+
 .save-btn {
   margin: 8rpx 24rpx;
   padding: 28rpx 0;

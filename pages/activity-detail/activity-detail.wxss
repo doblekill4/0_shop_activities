@@ -162,6 +162,18 @@
   width: 240rpx;
 }
 
+.btn-undo-step {
+  margin-top: 10rpx;
+  background: #FFF3E0;
+  color: #E65100;
+  border-radius: 12rpx;
+  padding: 14rpx 0;
+  font-size: 26rpx;
+  font-weight: 600;
+  border: 1rpx solid #FFE0B2;
+  width: 240rpx;
+}
+
 /* 场地需求网格 */
 .requirement-grid {
   display: flex;
@@ -175,16 +187,22 @@
   flex-direction: column;
   align-items: center;
   width: calc(20% - 14rpx);
-  padding: 16rpx 0;
+  padding: 20rpx 0;
   border-radius: 12rpx;
-  background: #f5f5f5;
+  background: rgba(46, 125, 50, 0.1);
   font-size: 22rpx;
-  color: #bbb;
-  gap: 8rpx;
+  color: #2E7D32;
+  font-weight: 500;
+  gap: 10rpx;
 }
 
-.req-item.active { background: #E8F5E9; color: #2E7D32; }
-.req-icon { font-size: 36rpx; }
+.req-icon { font-size: 40rpx; }
+
+.no-needs {
+  font-size: 24rpx;
+  color: #bbb;
+  padding: 16rpx 0;
+}
 
 /* 香囊账户 */
 .sachet-tag {
@@ -222,36 +240,44 @@
 .voucher-status.uploaded { background: #E8F5E9; color: #2E7D32; }
 .voucher-status.missing  { background: #FFEBEE; color: #D32F2F; }
 
-.voucher-preview {
-  padding: 16rpx;
+.voucher-gallery {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  padding: 8rpx 0;
 }
-
-.voucher-img {
+.voucher-gallery-item {
+  width: calc(33.33% - 8rpx);
+  position: relative;
+}
+.voucher-thumb {
   width: 100%;
-  height: 280rpx;
+  height: 160rpx;
   border-radius: 8rpx;
   background: #f5f5f5;
 }
-
-.voucher-upload-time { font-size: 22rpx; color: #aaa; }
-
-.voucher-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8rpx 0 0;
+.voucher-thumb-time {
+  font-size: 18rpx;
+  color: #aaa;
+  margin-top: 4rpx;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.btn-delete-voucher {
+.voucher-thumb-del {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background: #D32F2F;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 24rpx;
-  color: #D32F2F;
-  padding: 8rpx 20rpx;
-  border: 1rpx solid #FFCDD2;
-  border-radius: 8rpx;
-  background: #FFF5F5;
 }
 
 .btn-upload {
@@ -269,6 +295,13 @@
 /* 修订日志 */
 .revision-list { display: flex; flex-direction: column; }
 
+.log-item {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.log-item:last-child { border-bottom: none; }
+
 .log-meta {
   display: flex;
   justify-content: space-between;
@@ -278,5 +311,14 @@
 .log-user { font-size: 24rpx; color: #333; font-weight: 600; }
 .log-time { font-size: 22rpx; color: #aaa; }
 
-.change-field { font-weight: 600; font-size: 24rpx; color: #555; }
-.change-arrow { color: #999; }
+.log-content {
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.7;
+}
+
+/* 状态标签 */
+.tag-active    { background: #E8F5E9; color: #2E7D32; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+.tag-completed { background: #E3F2FD; color: #1565C0; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+.tag-pending   { background: #FFF3E0; color: #E65100; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+.tag-settled   { background: #F3E5F5; color: #7B1FA2; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }

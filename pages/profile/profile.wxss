@@ -73,6 +73,21 @@
 }
 
 .menu-item:last-child { border-bottom: none; }
+
+.share-btn.menu-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  font-weight: normal;
+  line-height: inherit;
+}
+
+.share-btn.menu-item::after {
+  border: none;
+}
+
 .menu-icon  { font-size: 36rpx; }
 .menu-label { flex: 1; font-size: 28rpx; color: #333; }
 .menu-arrow { font-size: 32rpx; color: #ccc; }

@@ -4,9 +4,11 @@
   <!-- 日期导航 -->
   <view class="gantt-nav">
     <view class="nav-arrow" bindtap="prevDay">‹</view>
-    <view class="nav-title" bindtap="goToday">
-      <text class="nav-date">{{currentDateLabel}}</text>
-    </view>
+    <picker mode="date" value="{{currentDate}}" bindchange="onDatePick">
+      <view class="nav-title">
+        <text class="nav-date">{{currentDateLabel}}</text>
+      </view>
+    </picker>
     <view class="nav-arrow" bindtap="nextDay">›</view>
   </view>
 
@@ -19,18 +21,20 @@
   <!-- 主体：左侧冻结列 + 右侧可横向滚动区域 -->
   <view class="gantt-body">
 
-    <!-- 左侧冻结列：活动名称 -->
+    <!-- 左侧冻结列：活动信息 -->
     <view class="frozen-col">
       <view class="frozen-header">活动</view>
       <view
         class="frozen-row"
         wx:for="{{activities}}"
         wx:key="id"
-        style="height:{{gridRowHeight}}rpx;"
+        style="height:{{item.rowHeight || gridRowHeight}}rpx;"
       >
         <view class="frozen-cell">
           <text class="label-unit">{{item.activityUnit}}</text>
-          <text class="label-date">{{item.activityDateStr}}</text>
+          <text wx:if="{{item.showStatusTag}}" class="status-tag {{item.statusClass}}">（{{item.statusLabel}}）</text>
+          <text class="label-info">👥 {{item.peopleCount}}人</text>
+          <text class="label-date">{{item.arrivalTime || ''}}</text>
         </view>
       </view>
     </view>
@@ -48,6 +52,7 @@
             class="hour-cell"
             wx:for="{{hourSlots}}"
             wx:key="hour"
+            style="width:{{hourCellWidth}}rpx;"
           >
             <text class="hour-label">{{item.label}}</text>
           </view>
@@ -60,7 +65,7 @@
           wx:key="id"
           bindtap="goDetail"
           data-id="{{item.id}}"
-          style="height:{{gridRowHeight}}rpx;"
+          style="height:{{item.rowHeight || gridRowHeight}}rpx;"
         >
           <!-- 小时网格背景 -->
           <view class="hour-cells">
@@ -68,6 +73,7 @@
               class="hour-cell-bg"
               wx:for="{{hourSlots}}"
               wx:key="hour"
+              style="width:{{hourCellWidth}}rpx;"
             />
 
             <!-- 各环节进度条 -->

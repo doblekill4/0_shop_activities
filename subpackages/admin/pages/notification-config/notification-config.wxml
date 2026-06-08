@@ -25,35 +25,47 @@
             </picker>
           </view>
 
-          <!-- 提前/延后分钟 -->
-          <view class="form-item">
-            <text class="form-label">{{item.timingIndex === 0 ? '提前' : '延后'}}分钟</text>
+          <!-- 提前/延后分钟（事件驱动类型无需设分钟） -->
+          <view class="form-item" wx:if="{{item.timingIndex <= 2}}">
+            <text class="form-label">{{item.timingIndex === 1 ? '延后' : '提前'}}分钟</text>
             <input class="form-input" type="number" value="{{item.minutes}}"
               bindinput="onMinutesInput" data-index="{{index}}" placeholder="30" />
           </view>
-
-          <!-- 目标类型 -->
-          <view class="form-item">
-            <text class="form-label">通知对象</text>
-            <picker mode="selector" range="{{['指定人员', '部门群组']}}" value="{{item.targetTypeIndex}}"
-              bindchange="onTargetTypeChange" data-index="{{index}}">
-              <view class="form-input picker-value">{{item.targetTypeIndex === 0 ? '指定人员' : '部门群组'}}</view>
-            </picker>
+          <view wx:elif="{{item.timingIndex === 3}}" class="auto-target-hint">
+            <text>📌 上一环节确认完成后即时通知下一环节负责人</text>
+          </view>
+          <view wx:elif="{{item.timingIndex === 4}}" class="auto-target-hint">
+            <text>📌 每个环节完成后即时通知指定部门</text>
           </view>
 
-          <!-- 目标选择 -->
-          <view class="form-item">
-            <text class="form-label">选择{{item.targetTypeIndex === 0 ? '人员' : '群组'}}</text>
-            <view class="target-chips">
-              <view class="target-chip" wx:for="{{item.targets}}" wx:for-item="t" wx:key="id">
-                <text>{{t.name}}</text>
-                <text class="chip-del" bindtap="removeTarget"
-                  data-rule-index="{{index}}" data-target-id="{{t.id}}">×</text>
-              </view>
-              <view class="target-chip add" bindtap="addTarget" data-rule-index="{{index}}">
-                <text>＋ 添加</text>
+          <!-- 目标类型（活动级规则 + 全部流程结束后规则需要手动选择） -->
+          <block wx:if="{{item.timingIndex <= 1 || item.timingIndex === 4}}">
+            <view class="form-item">
+              <text class="form-label">通知对象</text>
+              <picker mode="selector" range="{{['指定人员', '部门群组']}}" value="{{item.targetTypeIndex}}"
+                bindchange="onTargetTypeChange" data-index="{{index}}">
+                <view class="form-input picker-value">{{item.targetTypeIndex === 0 ? '指定人员' : '部门群组'}}</view>
+              </picker>
+            </view>
+
+            <!-- 目标选择 -->
+            <view class="form-item">
+              <text class="form-label">选择{{item.targetTypeIndex === 0 ? '人员' : '群组'}}</text>
+              <view class="target-chips">
+                <view class="target-chip" wx:for="{{item.targets}}" wx:for-item="t" wx:key="id">
+                  <text>{{t.name}}</text>
+                  <text class="chip-del" bindtap="removeTarget"
+                    data-rule-index="{{index}}" data-target-id="{{t.id}}">×</text>
+                </view>
+                <view class="target-chip add" bindtap="addTarget" data-rule-index="{{index}}">
+                  <text>＋ 添加</text>
+                </view>
               </view>
             </view>
+          </block>
+          <!-- 流程级规则：自动匹配环节负责人，无需手动选择 -->
+          <view wx:else class="auto-target-hint">
+            <text>📌 自动匹配活动流程中的环节负责人</text>
           </view>
         </view>
       </view>
