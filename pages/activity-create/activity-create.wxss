@@ -61,8 +61,11 @@
   flex-shrink: 0;
 }
 .cal-empty { background: transparent; }
-.cal-green { background: #C8E6C9; }
+.cal-green  { background: #C8E6C9; }
 .cal-yellow { background: #FFF9C4; }
+.cal-orange-light { background: #FFE0B2; }
+.cal-orange { background: #FFCC80; }
+.cal-red   { background: #FFCDD2; }
 .cal-purple { background: #E1BEE7; }
 .cal-today {
   border: 3rpx solid #1976D2;
@@ -89,7 +92,21 @@
 .cal-lg-dot { width: 20rpx; height: 20rpx; border-radius: 4rpx; flex-shrink: 0; }
 .cal-green-dot { background: #C8E6C9; border: 1rpx solid #A5D6A7; }
 .cal-yellow-dot { background: #FFF9C4; border: 1rpx solid #FFF176; }
+.cal-orange-dot { background: #FFCC80; border: 1rpx solid #FFB74D; }
+.cal-red-dot { background: #FFCDD2; border: 1rpx solid #EF9A9A; }
 .cal-purple-dot { background: #E1BEE7; border: 1rpx solid #CE93D8; }
+
+/* 日历折叠 */
+.cal-nav-row {
+  display: flex; align-items: center; justify-content: center;
+  padding: 8rpx 0; gap: 24rpx;
+}
+.cal-month { font-size: 28rpx; font-weight: 600; color: #333; }
+.cal-auto-row {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 8rpx 0 0; gap: 8rpx;
+}
+.cal-auto-label { font-size: 22rpx; color: #888; }
 
 /* 提示横幅 */
 .banner-tip {

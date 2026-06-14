@@ -9,35 +9,46 @@
       <text class="tip-text">上传订金凭证后，活动才会出现在公共列表中</text>
     </view>
 
-    <!-- ========== 活动日历 ========== -->
+    <!-- ========== 活动日历（折叠） ========== -->
     <view class="card calendar-section">
-      <view class="cal-header">
-        <view class="cal-nav-arrow" bindtap="calPrevMonth">‹</view>
-        <text class="cal-title">{{calYear}}年{{calMonth}}月</text>
-        <view class="cal-nav-arrow" bindtap="calNextMonth">›</view>
+      <view class="cal-header" bindtap="toggleCalendar">
+        <text class="cal-title">📅 预定日历 {{calExpanded ? '▼' : '▶'}}</text>
       </view>
-      <view class="cal-weekdays">
-        <text class="cal-wd">一</text><text class="cal-wd">二</text><text class="cal-wd">三</text>
-        <text class="cal-wd">四</text><text class="cal-wd">五</text><text class="cal-wd">六</text><text class="cal-wd">日</text>
-      </view>
-      <view class="cal-grid" wx:for="{{calWeeks}}" wx:key="index">
-        <view
-          class="cal-cell {{cell ? cell.cls : 'cal-empty'}} {{cell && cell.isToday ? 'cal-today' : ''}}"
-          wx:for="{{item}}" wx:for-item="cell" wx:key="index"
-          data-date="{{cell ? cell.dateStr : ''}}"
-          bindtap="calTapDay"
-        >
-          <block wx:if="{{cell}}">
-            <text class="cal-day">{{cell.day}}</text>
-            <text class="cal-count" wx:if="{{cell.count > 0}}">{{cell.count}}场</text>
-            <text class="cal-people" wx:if="{{cell.totalPeople > 0}}">{{cell.totalPeople}}人</text>
-          </block>
+      <view wx:if="{{calExpanded}}">
+        <view class="cal-nav-row">
+          <view class="cal-nav-arrow" bindtap="calPrevMonth">‹</view>
+          <text class="cal-month">{{calYear}}年{{calMonth}}月</text>
+          <view class="cal-nav-arrow" bindtap="calNextMonth">›</view>
         </view>
-      </view>
-      <view class="cal-legend">
-        <view class="cal-lg-item"><view class="cal-lg-dot cal-green-dot" /><text>可预约</text></view>
-        <view class="cal-lg-item"><view class="cal-lg-dot cal-yellow-dot" /><text>已有预定</text></view>
-        <view class="cal-lg-item"><view class="cal-lg-dot cal-purple-dot" /><text>接待上限</text></view>
+        <view class="cal-weekdays">
+          <text class="cal-wd">一</text><text class="cal-wd">二</text><text class="cal-wd">三</text>
+          <text class="cal-wd">四</text><text class="cal-wd">五</text><text class="cal-wd">六</text><text class="cal-wd">日</text>
+        </view>
+        <view class="cal-grid" wx:for="{{calWeeks}}" wx:key="index">
+          <view
+            class="cal-cell {{cell ? cell.cls : 'cal-empty'}} {{cell && cell.isToday ? 'cal-today' : ''}}"
+            wx:for="{{item}}" wx:for-item="cell" wx:key="index"
+            data-date="{{cell ? cell.dateStr : ''}}"
+            bindtap="calTapDay"
+          >
+            <block wx:if="{{cell}}">
+              <text class="cal-day">{{cell.day}}</text>
+              <text class="cal-count" wx:if="{{cell.count > 0}}">{{cell.count}}场</text>
+              <text class="cal-people" wx:if="{{cell.totalPeople > 0}}">{{cell.totalPeople}}人</text>
+            </block>
+          </view>
+        </view>
+        <view class="cal-legend">
+          <view class="cal-lg-item"><view class="cal-lg-dot cal-green-dot" /><text>可预约</text></view>
+          <view class="cal-lg-item"><view class="cal-lg-dot cal-yellow-dot" /><text>已有预定</text></view>
+          <view class="cal-lg-item"><view class="cal-lg-dot cal-orange-dot" /><text>200人</text></view>
+          <view class="cal-lg-item"><view class="cal-lg-dot cal-red-dot" /><text>300人+</text></view>
+          <view class="cal-lg-item"><view class="cal-lg-dot cal-purple-dot" /><text>上限</text></view>
+        </view>
+        <view class="cal-auto-row">
+          <text class="cal-auto-label">以后默认展开</text>
+          <switch checked="{{calAutoExpand}}" bindchange="toggleAutoExpand" color="#2E7D32" />
+        </view>
       </view>
     </view>
 
@@ -154,6 +165,18 @@
                 {{item.endTime || '10:00'}}
               </view>
             </view>
+          </view>
+
+          <!-- 环节地点 -->
+          <view class="form-item">
+            <text class="form-label">地点</text>
+            <picker mode="selector" range="{{venueOptions}}"
+              value="{{item.venueIndex != null && item.venueIndex >= 0 ? item.venueIndex : 0}}"
+              bindchange="onStepVenueChange" data-index="{{index}}">
+              <view class="form-input picker-value">
+                {{item.venue || '请选择地点'}}
+              </view>
+            </picker>
           </view>
 
           <view class="form-item">
@@ -343,6 +366,18 @@
         </picker-view>
         <view class="time-picker-indicator" />
       </view>
+    </view>
+  </view>
+
+  <!-- 手动输入地点弹窗 -->
+  <view class="time-picker-popup" wx:if="{{showVenueInput}}" catchtap="">
+    <view class="time-picker-header">
+      <view class="time-picker-cancel" bindtap="cancelCustomVenue">取消</view>
+      <text style="font-size:30rpx;font-weight:600;">输入地点名称</text>
+      <view class="time-picker-confirm" bindtap="confirmCustomVenue">确定</view>
+    </view>
+    <view style="padding:32rpx;">
+      <input class="form-input" placeholder="输入自定义地点名称" value="{{customVenue}}" bindinput="onCustomVenueInput" focus />
     </view>
   </view>
 

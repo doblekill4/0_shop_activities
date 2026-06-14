@@ -24,6 +24,10 @@ exports.main = async (event, context) => {
         return await resetStoreGroup(openid);
       case 'setNotifyEnabled':
         return await setNotifyEnabled(openid, event.enabled);
+      case 'listUsers':
+        return await listUsers();
+      case 'setUserStatus':
+        return await setUserStatus(event, openid);
       default:
         return { code: -1, message: '未知操作' };
     }
@@ -101,7 +105,10 @@ async function autoLogin(openid) {
 
 /* ========== 登录（注册或更新） ========== */
 async function login(event, openid) {
-  const { name, department, nickname, avatarUrl, employeeId, role, fromGroup, groupEncryptedData, groupIv } = event;
+  const { name, department, nickname, avatarUrl, employeeId, role, fromGroup, groupEncryptedData, groupIv, scene } = event;
+  // 体验版 getGroupEnterInfo 可能无加密数据，用 scene 兜底
+  const fromGroupScene = !fromGroup && scene === 1044;
+  const effectiveFromGroup = fromGroup || fromGroupScene;
 
   try {
     // 先检查用户是否已存在
@@ -178,6 +185,17 @@ async function login(event, openid) {
       if (groupEncryptedData && groupIv) {
         verifiedStoreGroup = await verifyStoreGroup(groupEncryptedData, groupIv, openid);
         console.log('[auth.login] 群验证结果:', verifiedStoreGroup);
+      } else if (effectiveFromGroup && !groupEncryptedData) {
+        // 体验版 fallback：scene 确认从群进但无加密数据 → 不能验证具体群，只能确认来自群
+        console.log('[auth.login] 体验版群入口（无加密数据），scene=' + scene);
+      }
+
+      // 如果门店群已登记但当前用户不从群入口进入 → 拒绝注册
+      // 提审前在"我的"页点「重置门店群白名单」暂时清掉，审核员就能进去
+      const storeGroupExists = await checkStoreGroupExists();
+      if (storeGroupExists && !effectiveFromGroup) {
+        console.log('[auth.login] 门店群已登记，非群入口注册被拒');
+        return { code: 403, message: '仅限门店群成员注册，请从群聊中打开小程序' };
       }
 
       // 最终角色：admin > 门店群验证通过 > user
@@ -270,16 +288,25 @@ async function getPublicUserList() {
 /* ========== 重置门店群白名单（管理员操作） ========== */
 async function resetStoreGroup(openid) {
   try {
+    console.log('[resetStoreGroup] 操作者 openid:', openid);
     // 仅王万全可操作
     const userRes = await db.collection('users').where({ openid }).get();
     const user = userRes.data && userRes.data[0];
+    console.log('[resetStoreGroup] 查询到用户:', user ? user.name : '无', 'role:', user ? user.role : '');
     if (!user || user.name !== '王万全') {
-      return { code: 403, message: '仅王万全可重置门店群' };
+      return { code: 403, message: '仅王万全可重置门店群（当前：' + (user ? user.name : '未识别') + '）' };
     }
 
     // 删除已有的白名单记录
-    const res = await db.collection('settings')
-      .where({ key: 'store_group_id' }).get();
+    let res;
+    try {
+      res = await db.collection('settings')
+        .where({ key: 'store_group_id' }).get();
+    } catch (e) {
+      // settings 集合可能尚未创建
+      console.log('[resetStoreGroup] settings 集合查询失败（可能未创建）:', e.message);
+      return { code: 0, message: '当前无门店群白名单（settings集合未初始化），无需重置' };
+    }
 
     if (res.data && res.data.length > 0) {
       await db.collection('settings').doc(res.data[0]._id).remove();
@@ -289,8 +316,8 @@ async function resetStoreGroup(openid) {
 
     return { code: 0, message: '当前无门店群白名单，无需重置' };
   } catch (e) {
-    console.error('[resetStoreGroup] 失败:', e);
-    return { code: -1, message: '操作失败' };
+    console.error('[resetStoreGroup] 失败:', e.message, e.stack);
+    return { code: -1, message: '操作失败：' + (e.message || '未知') };
   }
 }
 
@@ -319,6 +346,17 @@ async function setNotifyEnabled(openid, enabled) {
   } catch (e) {
     console.error('[setNotifyEnabled] 失败', e);
     return { code: -1, message: '更新失败' };
+  }
+}
+
+/* ========== 检查门店群是否已登记 ========== */
+async function checkStoreGroupExists() {
+  try {
+    const res = await db.collection('settings')
+      .where({ key: 'store_group_id' }).get();
+    return res.data && res.data.length > 0;
+  } catch (e) {
+    return false;
   }
 }
 
@@ -381,4 +419,33 @@ async function verifyStoreGroup(encryptedData, iv, openid) {
     console.error('[verifyStoreGroup] 解密验证失败:', e.message || e);
     return false;
   }
+}
+
+/* ========== 用户列表（含状态字段，仅admin可用） ========== */
+async function listUsers() {
+  try {
+    const res = await db.collection('users')
+      .field({ openid: false })
+      .orderBy('createdAt', 'desc')
+      .limit(200)
+      .get();
+    return { code: 0, data: res.data || [], message: 'success' };
+  } catch (e) {
+    return { code: -1, message: '获取失败' };
+  }
+}
+
+/* ========== 设置用户状态 ========== */
+async function setUserStatus(event, operatorOpenid) {
+  const { userId, status } = event;
+  if (!userId || !status) return { code: -1, message: '参数不全' };
+  // 仅 admin 可操作
+  const opRes = await db.collection('users').where({ openid: operatorOpenid }).get();
+  const op = opRes.data && opRes.data[0];
+  if (!op || op.role !== 'admin') return { code: 403, message: '仅管理员可操作' };
+
+  await db.collection('users').doc(userId).update({
+    data: { status, updatedAt: new Date() }
+  });
+  return { code: 0, message: status === 'inactive' ? '已标记为离职' : '已恢复' };
 }

@@ -1,0 +1,16 @@
+/* subpackages/admin/pages/user-manage/user-manage.wxss */
+.user-page { padding: 24rpx; background: #f5f5f5; min-height: 100vh; }
+.user-card {
+  background: #fff; border-radius: 12rpx; padding: 24rpx; margin-bottom: 16rpx;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.user-info { flex: 1; }
+.user-name { font-size: 30rpx; font-weight: 600; color: #222; }
+.user-dept { font-size: 24rpx; color: #888; margin-top: 4rpx; }
+.user-role { font-size: 22rpx; color: #2E7D32; margin-top: 4rpx; }
+.user-status { font-size: 22rpx; }
+.status-active { color: #2E7D32; }
+.status-inactive { color: #D32F2F; }
+.btn-status {
+  padding: 12rpx 24rpx; border-radius: 20rpx; font-size: 24rpx; border: 1rpx solid #e0e0e0;
+}

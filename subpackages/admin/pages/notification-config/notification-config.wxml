@@ -57,7 +57,7 @@
                   <text class="chip-del" bindtap="removeTarget"
                     data-rule-index="{{index}}" data-target-id="{{t.id}}">×</text>
                 </view>
-                <view class="target-chip add" bindtap="addTarget" data-rule-index="{{index}}">
+                <view class="target-chip add" catchtap="addTarget" data-rule-index="{{index}}">
                   <text>＋ 添加</text>
                 </view>
               </view>

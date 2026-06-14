@@ -1,0 +1,17 @@
+<!-- subpackages/admin/pages/user-manage/user-manage.wxml -->
+<view class="user-page">
+  <view class="user-card" wx:for="{{users}}" wx:key="_id">
+    <view class="user-info">
+      <text class="user-name">{{item.name || '未命名'}}</text>
+      <text class="user-dept">{{item.department || '—'}}</text>
+      <text class="user-role">{{item.role === 'admin' ? '管理员' : item.role === 'employee' ? '员工' : '普通用户'}}</text>
+      <text class="user-status {{item.status === 'inactive' ? 'status-inactive' : 'status-active'}}">
+        {{item.status === 'inactive' ? '已离职' : '在职'}}
+      </text>
+    </view>
+    <view class="btn-status" bindtap="toggleStatus" data-id="{{item._id}}" data-status="{{item.status}}">
+      {{item.status === 'inactive' ? '恢复' : '离职'}}
+    </view>
+  </view>
+  <view wx:if="{{users.length === 0}}" style="text-align:center;padding:80rpx;color:#999;">暂无数据</view>
+</view>

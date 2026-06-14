@@ -101,6 +101,7 @@
           <view class="step-body">
             <view class="step-name-row">
               <text class="step-name">{{step.stepName}}</text>
+              <text wx:if="{{step.venue}}" class="step-venue">📍{{step.venue}}</text>
               <text class="step-time-range">{{step.startTime}}~{{step.endTime}}</text>
             </view>
             <view class="step-owner-row">
@@ -219,7 +220,7 @@
           <!-- 图片画廊 -->
           <view class="voucher-gallery" wx:if="{{item.vouchers.length > 0}}">
             <view class="voucher-gallery-item" wx:for="{{item.vouchers}}" wx:key="voucherId">
-              <image src="{{item.fileID}}" mode="aspectFill" class="voucher-thumb" bindtap="previewVoucher" data-file-id="{{item.fileID}}" />
+              <image src="{{item.fileID}}" mode="aspectFill" class="voucher-thumb" bindtap="previewVoucher" data-file-id="{{item.origFileID || item.fileID}}" />
               <view class="voucher-thumb-time">{{item.uploadTime}}</view>
               <view class="voucher-thumb-del" wx:if="{{canManageVoucher}}" data-voucher-id="{{item.voucherId}}" catchtap="deleteVoucher">×</view>
             </view>

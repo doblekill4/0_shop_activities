@@ -1,5 +1,5 @@
 // pages/activity-detail/activity-detail.js
-const { getActivityDetail, getRevisionLog, uploadVoucher, deleteVoucher: svcDeleteVoucher, deleteActivity } = require('../../services/activity');
+const { getActivityDetail, getRevisionLog, uploadVoucher, deleteVoucher: svcDeleteVoucher, deleteActivity, getFileTempURL } = require('../../services/activity');
 const { confirmStepDone, undoStepDone } = require('../../services/process');
 const { hasPermission, isAdmin, getCurrentUser } = require('../../utils/auth');
 const { formatDate, getStatusLabel } = require('../../utils/format');
@@ -75,10 +75,53 @@ Page({
       ]);
       this._applyDetail(detail);
       this._applyRevisions(revLog);
+      // 体验版非开发者无法直接用 cloud:// URL 显示缩略图，预取临时链接
+      this._resolveVoucherThumbnails();
     } catch (e) {
       wx.showToast({ title: '加载失败', icon: 'none' });
     }
     this.setData({ loading: false });
+  },
+
+  // 预取凭证缩略图的临时链接（免费环境云存储权限锁定，所有版本均需代理）
+  async _resolveVoucherThumbnails() {
+    const voucherTypes = this.data.voucherTypes;
+    // 收集所有 cloud:// 格式的 fileID
+    const cloudFileIDs = [];
+    voucherTypes.forEach(vt => {
+      vt.vouchers.forEach(v => {
+        if (v.fileID && v.fileID.startsWith('cloud://')) {
+          cloudFileIDs.push(v.fileID);
+        }
+      });
+    });
+    if (cloudFileIDs.length === 0) return;
+    try {
+      const tempUrls = await getFileTempURL(cloudFileIDs);
+      const fileList = Array.isArray(tempUrls) ? tempUrls : (tempUrls && tempUrls.data);
+      if (!fileList || !fileList.length) return;
+      // 构建 fileID → tempFileURL 映射
+      const urlMap = {};
+      fileList.forEach(item => {
+        if (item.tempFileURL && item.status === 0) {
+          urlMap[item.fileID] = item.tempFileURL;
+        }
+      });
+      // 替换 voucherTypes 中对应凭证的 fileID 为临时链接（用于缩略图展示）
+      // 保留 origFileID 用于全屏预览（避免临时链接过期）
+      const updatedTypes = voucherTypes.map(vt => ({
+        ...vt,
+        vouchers: vt.vouchers.map(v => ({
+          ...v,
+          origFileID: v.fileID,
+          fileID: urlMap[v.fileID] || v.fileID,
+        })),
+      }));
+      this.setData({ voucherTypes: updatedTypes });
+    } catch (e) {
+      // 预取失败不影响页面展示，缩略图保持原 fileID
+      console.warn('[_resolveVoucherThumbnails] 预取临时链接失败:', e);
+    }
   },
 
   _applyDetail(a) {
@@ -318,9 +361,17 @@ Page({
   async _doUploadVoucher(voucherType, filePath, callback) {
     if (this._loading && !callback) return;
     if (!callback) this._loading = true;
-    wx.showLoading({ title: '上传中...' });
+    wx.showLoading({ title: '压缩上传中...' });
     try {
-      await uploadVoucher(this.data.activityId, voucherType, filePath);
+      // 压缩图片（>500KB 才压，凭证清晰度足够即可）
+      let uploadPath = filePath;
+      try {
+        const info = await this._getFileInfo(filePath);
+        if (info && info.size > 500 * 1024) {
+          uploadPath = await this._compressImage(filePath);
+        }
+      } catch (e) { /* 压缩失败用原图 */ }
+      await uploadVoucher(this.data.activityId, voucherType, uploadPath);
       wx.hideLoading();
       if (callback) { callback(); return; }
       wx.showToast({ title: '上传成功', icon: 'success' });
@@ -333,7 +384,26 @@ Page({
     if (!callback) this._loading = false;
   },
 
-  // 预览凭证（真机调试非开发者无法直接用 getTempFileURL，改用 downloadFile）
+  // 获取文件信息
+  _getFileInfo(filePath) {
+    return new Promise((resolve, reject) => {
+      wx.getFileSystemManager().getFileInfo({ filePath, success: resolve, fail: reject });
+    });
+  },
+
+  // 压缩图片
+  _compressImage(filePath) {
+    return new Promise((resolve, reject) => {
+      wx.compressImage({
+        src: filePath,
+        quality: 80,
+        success: (res) => resolve(res.tempFilePath),
+        fail: () => resolve(filePath), // 压缩失败用原图
+      });
+    });
+  },
+
+  // 预览凭证（通过云函数管理员权限获取临时链接，解决体验版非开发者无法预览的问题）
   previewVoucher(e) {
     const fileID = e.currentTarget.dataset.fileId;
     if (!fileID) return;
@@ -342,27 +412,43 @@ Page({
       wx.previewImage({ current: fileID, urls: [fileID] });
       return;
     }
-    // 先尝试 downloadFile → 本地临时路径预览（权限要求更低）
     wx.showLoading({ title: '加载图片...' });
-    wx.cloud.downloadFile({
-      fileID: fileID,
-      success: (res) => {
+    // 通过云函数（管理员权限）获取临时链接
+    getFileTempURL([fileID])
+      .then(res => {
         wx.hideLoading();
-        if (res.tempFilePath) {
-          wx.previewImage({ current: res.tempFilePath, urls: [res.tempFilePath] });
+        // callCloudFunc 在成功时已剥掉 {code, data} 外层，res 直接是 data（数组）
+        const fileList = Array.isArray(res) ? res : (res && res.data);
+        const item = (fileList && fileList[0]);
+        if (item && item.tempFileURL && item.status === 0) {
+          wx.previewImage({ current: item.tempFileURL, urls: [item.tempFileURL] });
         } else {
-          wx.showToast({ title: '预览失败，请重试', icon: 'none' });
+          // 云函数兜底失败，再用客户端 SDK 尝试
+          wx.cloud.downloadFile({
+            fileID: fileID,
+            success: (downloadRes) => {
+              wx.hideLoading();
+              if (downloadRes.tempFilePath) {
+                wx.previewImage({ current: downloadRes.tempFilePath, urls: [downloadRes.tempFilePath] });
+              } else {
+                wx.showToast({ title: '预览失败，请重试', icon: 'none' });
+              }
+            },
+            fail: () => {
+              wx.hideLoading();
+              wx.showToast({ title: '预览失败，请重试', icon: 'none' });
+            },
+          });
         }
-      },
-      fail: () => {
-        // downloadFile 不可用，尝试 getTempFileURL 兜底
-        wx.cloud.getTempFileURL({
-          fileList: [fileID],
-          success: (r) => {
+      })
+      .catch(() => {
+        // 云函数不可用，降级使用客户端 SDK
+        wx.cloud.downloadFile({
+          fileID: fileID,
+          success: (downloadRes) => {
             wx.hideLoading();
-            const item = r.fileList && r.fileList[0];
-            if (item && item.tempFileURL && item.status === 0) {
-              wx.previewImage({ current: item.tempFileURL, urls: [item.tempFileURL] });
+            if (downloadRes.tempFilePath) {
+              wx.previewImage({ current: downloadRes.tempFilePath, urls: [downloadRes.tempFilePath] });
             } else {
               wx.showToast({ title: '预览失败，请重试', icon: 'none' });
             }
@@ -372,8 +458,7 @@ Page({
             wx.showToast({ title: '预览失败，请重试', icon: 'none' });
           },
         });
-      },
-    });
+      });
   },
 
   // 删除凭证

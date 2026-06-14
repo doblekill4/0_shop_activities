@@ -53,7 +53,14 @@ App({
     const timer = setTimeout(() => {
       if (!finished) {
         finished = true;
-        console.warn('[App] autoLogin 超时，进入登录页');
+        console.warn('[App] autoLogin 超时，检查本地缓存');
+        // 从本地缓存恢复（防止页面反复横跳）
+        const cached = wx.getStorageSync('userInfo');
+        if (cached) {
+          self.globalData.isLoggedIn = true;
+          self.globalData.userInfo = cached;
+          console.log('[App] autoLogin 超时，从缓存恢复用户:', cached.name);
+        }
         self.globalData.loginReady = true;
       }
     }, 5000);

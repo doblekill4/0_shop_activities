@@ -119,7 +119,9 @@ async function deleteDepartment(id) {
 /* ========== 用户管理 ========== */
 async function getUsers() {
   const res = await db.collection('users').get();
-  return { code: 0, data: res.data, message: 'success' };
+  // 过滤离职用户（员工管理页用 auth.listUsers 看全部）
+  const active = (res.data || []).filter(u => u.status !== 'inactive');
+  return { code: 0, data: active, message: 'success' };
 }
 
 async function updateUser(id, data) {

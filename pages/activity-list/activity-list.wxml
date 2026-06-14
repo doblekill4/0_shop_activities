@@ -109,6 +109,7 @@
           <view class="step-row" wx:for="{{item.steps}}" wx:for-item="step" wx:key="id">
             <view class="step-progress-dot {{step.status}}"></view>
             <text class="step-name">{{step.stepName}}</text>
+            <text class="step-venue" wx:if="{{step.venue}}">📍{{step.venue}}</text>
             <text class="step-time" wx:if="{{step.startTime}}">{{step.startTime}}{{step.endTime ? '~' + step.endTime : ''}}</text>
           </view>
         </view>

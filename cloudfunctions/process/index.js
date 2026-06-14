@@ -155,9 +155,13 @@ async function confirmStep(event, openid) {
   // 修复旧数据：确保有 _id
   ensureStepId(steps[idx]);
 
-  // 检查是否是负责人
-  if (steps[idx].ownerId !== openid && userInfo.role !== 'admin') {
+  // 检查是否是负责人：ownerId 存的是用户 _id，需与当前用户 _id 比较
+  if (steps[idx].ownerId !== userInfo._id && userInfo.role !== 'admin') {
     return { code: 403, message: '只有环节负责人可以确认完成' };
+  }
+  // 已离职用户不能确认
+  if (userInfo.status === 'inactive') {
+    return { code: 403, message: '已离职，无法操作' };
   }
 
   steps[idx].status = 'completed';
@@ -203,7 +207,7 @@ async function undoConfirmStep(event, openid) {
   ensureStepId(steps[idx]);
 
   // 权限：只有负责人或管理员可以撤销
-  if (steps[idx].ownerId !== openid && userInfo.role !== 'admin') {
+  if (steps[idx].ownerId !== userInfo._id && userInfo.role !== 'admin') {
     return { code: 403, message: '只有环节负责人可以撤销完成' };
   }
 

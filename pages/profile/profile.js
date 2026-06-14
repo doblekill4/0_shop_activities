@@ -26,6 +26,8 @@ Page({
   },
 
   onShow() {
+    const app = getApp();
+    if (!app.globalData.loginReady) return;
     const user = getCurrentUser();
     if (!user) {
       wx.reLaunch({ url: '/pages/login/login' });
@@ -60,14 +62,41 @@ Page({
     });
   },
 
-  toggleNotify(e) {
-    const enabled = e.detail.value;
-    this.setData({ notifyEnabled: enabled });
-    // 同步到数据库，云函数发通知前会检查
-    wx.cloud.callFunction({
-      name: 'auth',
-      data: { action: 'setNotifyEnabled', enabled },
-    }).catch(() => {});
+  toggleNotify() {
+    const currentlyEnabled = this.data.notifyEnabled;
+    if (currentlyEnabled) {
+      // 关闭通知
+      this.setData({ notifyEnabled: false });
+      wx.cloud.callFunction({
+        name: 'auth',
+        data: { action: 'setNotifyEnabled', enabled: false },
+      }).catch(() => {});
+    } else {
+      // 打开通知：先弹授权（必须由 tap 事件触发）
+      wx.requestSubscribeMessage({
+        tmplIds: [
+          'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',            // 定时提醒
+          'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',            // 清洁任务提醒
+          'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',            // 活动状态变更通知
+        ],
+        success: (res) => {
+          const accepted = res['XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70'] === 'accept';
+          if (accepted) {
+            this.setData({ notifyEnabled: true });
+            wx.cloud.callFunction({
+              name: 'auth',
+              data: { action: 'setNotifyEnabled', enabled: true },
+            }).catch(() => {});
+            wx.showToast({ title: '已开启通知', icon: 'success' });
+          } else {
+            wx.showToast({ title: '需授权才能收到通知', icon: 'none' });
+          }
+        },
+        fail: () => {
+          wx.showToast({ title: '授权失败，请重试', icon: 'none' });
+        },
+      });
+    }
   },
 
   goPermissions() {
@@ -80,6 +109,43 @@ Page({
 
   goExport() {
     wx.navigateTo({ url: '/subpackages/admin/pages/export/export' });
+  },
+
+  // 通知测试（仅王万全可用）
+  testNotify() {
+    // 先请求订阅消息授权
+    const allTmplIds = ['XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70', 'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg', 'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA'];
+    wx.requestSubscribeMessage({
+      tmplIds: allTmplIds,
+      success: (res) => {
+        const accepted = res['XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70'] === 'accept';
+        if (!accepted) {
+          wx.showToast({ title: '需要授权订阅消息才能发送', icon: 'none' });
+          return;
+        }
+        wx.showLoading({ title: '发送测试通知...' });
+        wx.cloud.callFunction({
+          name: 'notifications',
+          data: { action: 'testSend' },
+          success: (r) => {
+            wx.hideLoading();
+            const msg = (r.result && r.result.message) || '发送完成';
+            wx.showToast({ title: msg, icon: 'success', duration: 2000 });
+          },
+          fail: (err) => {
+            wx.hideLoading();
+            wx.showToast({ title: '发送失败: ' + (err.errMsg || '未知'), icon: 'none', duration: 2500 });
+          },
+        });
+      },
+      fail: () => {
+        wx.showToast({ title: '授权弹窗失败，请稍后重试', icon: 'none' });
+      },
+    });
+  },
+
+  goUserManage() {
+    wx.navigateTo({ url: '/subpackages/admin/pages/user-manage/user-manage' });
   },
 
   resetStoreGroup() {
@@ -95,12 +161,13 @@ Page({
           data: { action: 'resetStoreGroup' },
           success: (result) => {
             wx.hideLoading();
-            const msg = result.result ? result.result.message : '操作完成';
-            wx.showToast({ title: msg, icon: 'success', duration: 2000 });
+            const r = result.result || {};
+            const msg = r.code === 0 ? r.message : ('失败：' + (r.message || '未知'));
+            wx.showToast({ title: msg, icon: r.code === 0 ? 'success' : 'none', duration: 2500 });
           },
           fail: (err) => {
             wx.hideLoading();
-            wx.showToast({ title: '重置失败：' + (err.errMsg || '未知错误'), icon: 'none' });
+            wx.showToast({ title: '重置失败：' + (err.errMsg || '未知错误'), icon: 'none', duration: 3000 });
           },
         });
       },

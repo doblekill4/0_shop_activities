@@ -17,7 +17,8 @@
       "root": "subpackages/admin",
       "pages": [
         "pages/export/export",
-        "pages/notification-config/notification-config"
+        "pages/notification-config/notification-config",
+        "pages/user-manage/user-manage"
       ]
     }
   ],

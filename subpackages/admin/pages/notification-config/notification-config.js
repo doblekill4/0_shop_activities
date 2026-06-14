@@ -65,7 +65,14 @@ Page({
 
   onTimingChange(e) {
     const idx = e.currentTarget.dataset.index;
-    this.setData({ [`rules[${idx}].timingIndex`]: Number(e.detail.value) });
+    const newVal = Number(e.detail.value);
+    // timingIndex=4（通知指定部门）时默认选部门群组
+    const updates = { [`rules[${idx}].timingIndex`]: newVal };
+    if (newVal === 4) {
+      updates[`rules[${idx}].targetTypeIndex`] = 1;
+      updates[`rules[${idx}].targets`] = [];
+    }
+    this.setData(updates);
   },
 
   onMinutesInput(e) {
@@ -85,7 +92,9 @@ Page({
     const ruleIndex = e.currentTarget.dataset.ruleIndex;
     const rule = this.data.rules[ruleIndex];
     if (!rule) return;
-    const list = rule.targetTypeIndex === 0 ? this.data.allUsers : this.data.departments;
+    // timingIndex=4（通知部门）强制用部门列表
+    const useDepartments = rule.targetTypeIndex === 1 || rule.timingIndex === 4;
+    const list = useDepartments ? this.data.departments : this.data.allUsers;
     if (!list || list.length === 0) {
       wx.showToast({ title: '暂无可选人员或群组', icon: 'none' });
       return;

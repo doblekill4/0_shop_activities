@@ -2,11 +2,13 @@
 // 通知弹窗：发送活动通知 + 订阅消息授权
 const { getActivityDetail } = require('../../services/activity');
 const { getUsers } = require('../../services/admin');
-const { sendChangeNotification, requestSubscription, configureReminders } = require('../../services/notification');
+const { sendChangeNotification } = require('../../services/notification');
 
-// 订阅消息模板ID（需在微信后台配置后替换）
+// 订阅消息模板ID
 const SUBSCRIBE_TMPL_IDS = [
-  'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+  'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',            // 定时提醒
+  'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',            // 清洁任务提醒
+  'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',            // 活动状态变更通知
 ];
 
 Page({
@@ -20,8 +22,7 @@ Page({
   onLoad(options) {
     this.setData({ activityId: options.id || '' });
     this.loadActivity();
-    // 打开时自动请求订阅（非阻塞）
-    setTimeout(() => this.requestSub(), 500);
+    // 不再自动弹授权，改为发送前弹
   },
 
   async loadActivity() {
@@ -39,24 +40,54 @@ Page({
     }
   },
 
-  // 请求订阅消息授权
-  async requestSub() {
-    if (!SUBSCRIBE_TMPL_IDS[0] || SUBSCRIBE_TMPL_IDS[0].includes('PLACEHOLDER')) {
-      wx.showToast({ title: '请先在代码中配置订阅消息模板ID', icon: 'none', duration: 3000 });
-      return;
-    }
-    try {
-      await requestSubscription(SUBSCRIBE_TMPL_IDS);
-      this.setData({ subscribed: true });
-      wx.showToast({ title: '已授权订阅消息', icon: 'success' });
-    } catch (e) {
-      console.log('[notif-sheet] 用户取消订阅或授权失败', e);
-    }
+  // 请求订阅消息授权（必须由用户点击触发）
+  requestSub() {
+    if (!SUBSCRIBE_TMPL_IDS[0]) return;
+    wx.requestSubscribeMessage({
+      tmplIds: SUBSCRIBE_TMPL_IDS,
+      success: (res) => {
+        const accepted = SUBSCRIBE_TMPL_IDS.filter(id => res[id] === 'accept');
+        if (accepted.length > 0) {
+          this.setData({ subscribed: true });
+          wx.showToast({ title: '已授权订阅消息', icon: 'success' });
+        } else {
+          wx.showToast({ title: '需要授权后才能收到通知', icon: 'none' });
+        }
+      },
+      fail: () => {
+        wx.showToast({ title: '授权失败，请稍后重试', icon: 'none' });
+      },
+    });
   },
 
   // 发送活动变更通知
   async sendNotification() {
     if (this.data.sending) return;
+
+    // 未授权 → 先弹出授权弹窗
+    if (!this.data.subscribed) {
+      wx.requestSubscribeMessage({
+        tmplIds: SUBSCRIBE_TMPL_IDS,
+        success: (res) => {
+          const accepted = SUBSCRIBE_TMPL_IDS.filter(id => res[id] === 'accept');
+          if (accepted.length > 0) {
+            this.setData({ subscribed: true });
+            this._doSend();
+          } else {
+            wx.showToast({ title: '需要授权后才能发送通知', icon: 'none' });
+          }
+        },
+        fail: () => {
+          wx.showToast({ title: '授权失败，请稍后重试', icon: 'none' });
+        },
+      });
+      return;
+    }
+
+    this._doSend();
+  },
+
+  async _doSend() {
     this.setData({ sending: true });
     try {
       const { activityId, activity } = this.data;
@@ -67,7 +98,6 @@ Page({
         return;
       }
 
-      // 构建通知消息
       const ownerNames = owners.map(o => o.name);
       const message = `活动「${activity.activityUnit || ''}」(${activity.activityDate || ''}) 有更新，请查看`;
 

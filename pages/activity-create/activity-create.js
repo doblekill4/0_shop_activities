@@ -39,12 +39,108 @@ const DEFAULT_FORM = () => ({
 
 let _stepTempId = 0;
 
+// 预设地点列表
+const VENUE_LIST = [
+  '零号店1-3层', '零号店正门', '吧台后方书吧', '吧台沙发区', '吧台前台',
+  '战略报告厅', '大包间', '小包间', '西餐厅',
+  '散台小吃用餐区', '散台圆桌', '二层', '三层',
+  '三层LED区', '四层DIY区', '五层多功能厅',
+  '五层会议室一', '五层会议室二', '五层圆桌会议室',
+  '员工餐厅', '元宇宙数字化工厂', '其他（手动输入）',
+];
+
+// 地点别名映射：粘贴文本中的常用说法 → VENUE_LIST 中的正式名称
+const VENUE_ALIASES = {
+  '食堂':       '员工餐厅',
+  '园区餐厅':   '员工餐厅',
+  '饭堂':       '员工餐厅',
+  '餐厅':       '员工餐厅',
+  '会议室二':   '五层会议室二',
+  '会议室一':   '五层会议室一',
+  '会议室':     '五层会议室二',   // 默认匹配会议室二
+  '圆桌会议室': '五层圆桌会议室',
+  'LED区':        '三层LED区',
+  '开放式报告厅': '三层LED区',
+  '售药机':       '零号店正门',
+  'DIY区':        '四层DIY区',
+  '四层':         '四层DIY区',
+  '多功能厅':   '五层多功能厅',
+  '报告厅':     '战略报告厅',
+  '书吧':       '吧台后方书吧',
+  '沙发区':     '吧台沙发区',
+  '前台':       '吧台前台',
+  '包间':       '大包间',         // 默认大包间
+  '大包':       '大包间',
+  '小包':       '小包间',
+  '西餐':       '西餐厅',
+  '数字化':     '元宇宙数字化工厂',
+  '元宇宙':     '元宇宙数字化工厂',
+};
+
+/**
+ * 根据环节名称模糊匹配预设地点
+ * 返回 { venue, venueIndex }，未匹配则返回 venue:'' venueIndex:0
+ */
+function matchStepVenue(stepName) {
+  if (!stepName) return { venue: '', venueIndex: 0 };
+
+  const text = stepName.replace(/\s+/g, '');  // 去空格
+  const venues = VENUE_LIST.slice(0, -1);      // 排除"其他（手动输入）"
+
+  // 1) 别名精确命中
+  for (const [alias, target] of Object.entries(VENUE_ALIASES)) {
+    if (text.includes(alias)) {
+      const idx = venues.indexOf(target);
+      if (idx >= 0) return { venue: target, venueIndex: idx };
+    }
+  }
+
+  // 2) 直接子串匹配（环节名包含场地名 或 场地名包含环节关键词）
+  let best = { venue: '', venueIndex: 0, score: 0 };
+  for (let i = 0; i < venues.length; i++) {
+    const v = venues[i];
+    const vClean = v.replace(/\s+/g, '');
+    let score = 0;
+
+    // 完全包含
+    if (text.includes(vClean)) {
+      score = vClean.length * 10;  // 越长越精确
+    } else if (vClean.includes(text)) {
+      score = text.length * 8;
+    } else {
+      // 字符重叠度：逐2字词组匹配
+      const bigrams = new Set();
+      for (let j = 0; j < text.length - 1; j++) bigrams.add(text.slice(j, j + 2));
+      for (let j = 0; j < vClean.length - 1; j++) {
+        if (bigrams.has(vClean.slice(j, j + 2))) score += 2;
+      }
+    }
+
+    // 优先匹配楼层+名称组合
+    if (/[一二三四五六七]层/.test(text) && /[一二三四五六七]层/.test(vClean)) score += 5;
+
+    if (score > best.score) {
+      best = { venue: v, venueIndex: i, score };
+    }
+  }
+
+  // 阈值：至少 4 分才算匹配（2 个 bigram 重叠）
+  if (best.score >= 4 && best.venue) {
+    return { venue: best.venue, venueIndex: best.venueIndex };
+  }
+
+  return { venue: '', venueIndex: 0 };
+}
+
 Page({
   data: {
     form: DEFAULT_FORM(),
     userList: [],
-    isAdmin: false,      // 是否管理员（控制预订人可编辑性）
-    deptUserRange: [[], []],  // 管理员双列选择器：[部门名列表, 第一个部门的人员名列表]
+    isAdmin: false,
+    deptUserRange: [[], []],
+    venueOptions: VENUE_LIST,
+    showVenueInput: false,  // 是否显示手动输入地点框
+    customVenue: '',
     saving: false,
     submitting: false,
     draftId: null,       // 已存在的草稿 ID
@@ -63,7 +159,9 @@ Page({
     // 活动日历
     calYear: 0,
     calMonth: 0,
-    calWeeks: [], // [[{day, count, isToday, isLimit, className}, ...], ...]
+    calWeeks: [],
+    calExpanded: false,        // 日历默认折叠
+    calAutoExpand: false,      // 记住展开状态
   },
 
   // 计算属性：香囊是否显示
@@ -97,6 +195,9 @@ Page({
         this.setData({ userList: [user] });
       }
     }
+    // 恢复日历折叠状态
+    const savedExpand = wx.getStorageSync('cal_auto_expand');
+    if (savedExpand) this.setData({ calExpanded: true, calAutoExpand: true });
     this._checkMyDraft();
     this._loadTodayCalendar();
   },
@@ -111,6 +212,23 @@ Page({
   _loadTodayCalendar() {
     const now = new Date();
     this._loadCalendar(now.getFullYear(), now.getMonth() + 1);
+  },
+
+  // 折叠/展开日历（展开时懒加载数据）
+  toggleCalendar() {
+    const expanded = !this.data.calExpanded;
+    this.setData({ calExpanded: expanded });
+    if (expanded && (!this.data.calYear || !this.data.calMonth)) {
+      this._loadTodayCalendar();
+    }
+  },
+
+  // 记住展开状态
+  toggleAutoExpand(e) {
+    const checked = e.detail.value;
+    this.setData({ calAutoExpand: checked });
+    wx.setStorageSync('cal_auto_expand', checked);
+    if (!checked) this.setData({ calExpanded: false });
   },
 
   // 通用字段输入
@@ -184,14 +302,37 @@ Page({
         // 提取基本字段
         const dateVal = extractVal(line, '活动时间', '活动日期', '日期', '时间');
         if (dateVal) {
-          // 解析 "2026年6月1日 14:00" 格式 → 分离日期和到店时间
-          const timeMatch = dateVal.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/);
-          if (timeMatch) {
-            const [, y, mo, d, h, mi] = timeMatch;
+          // 解析多种日期格式 → 分离日期和到店时间
+          let matched = false;
+          // 格式1: "2026年6月1日 14:00" 或 "2026年6月1日14:00"（允许无空格 / 全角冒号）
+          const m1 = dateVal.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2})[：:](\d{2})/);
+          if (m1) {
+            const [, y, mo, d, h, mi] = m1;
             updates['form.activityDate'] = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             updates['form.arrivalTime'] = `${String(h).padStart(2, '0')}:${mi}`;
-          } else {
-            // 纯日期或纯时间回退
+            matched = true;
+          }
+          // 格式2: "2026-06-10" 或 "2026-06-10 14:00"
+          if (!matched) {
+            const m2 = dateVal.match(/(\d{4}-\d{1,2}-\d{1,2})/);
+            if (m2) {
+              updates['form.activityDate'] = m2[1];
+              const t2 = dateVal.match(/(\d{1,2}):(\d{2})/);
+              if (t2) updates['form.arrivalTime'] = `${String(Number(t2[1])).padStart(2, '0')}:${t2[2]}`;
+              matched = true;
+            }
+          }
+          // 格式3: "2026/6/1 14:00"
+          if (!matched) {
+            const m3 = dateVal.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/);
+            if (m3) {
+              const [, y, mo, d, h, mi] = m3;
+              updates['form.activityDate'] = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              updates['form.arrivalTime'] = `${String(h).padStart(2, '0')}:${mi}`;
+              matched = true;
+            }
+          }
+          if (!matched) {
             updates['form.activityDate'] = dateVal;
           }
           continue;
@@ -205,7 +346,14 @@ Page({
 
         const countVal = extractVal(line, '活动人数', '人数');
         if (countVal !== null) {
-          const num = countVal.replace(/[^0-9]/g, '');
+          // 人数可能是区间 "15-20人" 或 "15~20"，取分隔符后方的数字
+          let num = countVal;
+          const rangeMatch = num.match(/[-~到]\s*(\d+)/);
+          if (rangeMatch) {
+            num = rangeMatch[1];
+          } else {
+            num = num.replace(/[^0-9]/g, '');
+          }
           if (num) updates['form.peopleCount'] = num;
           continue;
         }
@@ -277,12 +425,16 @@ Page({
           let m = cleaned.match(/^(\d{1,2}):(\d{2})\s*[-~至到]\s*(\d{1,2}):(\d{2})\s*(.+)$/);
           if (m) {
             const [, sH, sM, eH, eM, name] = m;
+            const nameClean = name.trim();
+            const venueInfo = matchStepVenue(nameClean);
             step = {
               tempId: ++stepTempId,
-              stepName: name.trim(),
+              stepName: nameClean,
               startTime: `${sH.padStart(2, '0')}:${sM}`,
               endTime: `${eH.padStart(2, '0')}:${eM}`,
+              venue: venueInfo.venue, venueIndex: venueInfo.venueIndex,
               ownerId: '', ownerName: '', ownerIndex: -1,
+              ownerDeptValue: [0, this._pendingIdx || 0],
             };
           }
 
@@ -291,12 +443,16 @@ Page({
             m = cleaned.match(/^(.+?)\s+(\d{1,2}):(\d{2})\s*[-~至到]\s*(\d{1,2}):(\d{2})(?:\s+(.+))?$/);
             if (m) {
               const [, name, sH, sM, eH, eM, owner] = m;
+              const nameClean = name.trim();
+              const venueInfo = matchStepVenue(nameClean);
               step = {
                 tempId: ++stepTempId,
-                stepName: name.trim(),
+                stepName: nameClean,
                 startTime: `${sH.padStart(2, '0')}:${sM}`,
                 endTime: `${eH.padStart(2, '0')}:${eM}`,
+                venue: venueInfo.venue, venueIndex: venueInfo.venueIndex,
                 ownerId: '', ownerName: owner ? owner.trim() : '', ownerIndex: -1,
+                ownerDeptValue: [0, this._pendingIdx || 0],
               };
               if (owner && this.data.userList.length > 0) {
                 const idx = this.data.userList.findIndex(u => u.name === owner.trim());
@@ -311,11 +467,15 @@ Page({
             if (m) {
               const [, h, mi, name] = m;
               const t = `${h.padStart(2, '0')}:${mi}`;
+              const nameClean = name.trim();
+              const venueInfo = matchStepVenue(nameClean);
               step = {
                 tempId: ++stepTempId,
-                stepName: name.trim(),
+                stepName: nameClean,
                 startTime: t, endTime: t,
+                venue: venueInfo.venue, venueIndex: venueInfo.venueIndex,
                 ownerId: '', ownerName: '', ownerIndex: -1,
+                ownerDeptValue: [0, this._pendingIdx || 0],
               };
             }
           }
@@ -326,11 +486,15 @@ Page({
             if (m) {
               const [, name, h, mi, owner] = m;
               const t = `${h.padStart(2, '0')}:${mi}`;
+              const nameClean = name.trim();
+              const venueInfo = matchStepVenue(nameClean);
               step = {
                 tempId: ++stepTempId,
-                stepName: name.trim(),
+                stepName: nameClean,
                 startTime: t, endTime: t,
+                venue: venueInfo.venue, venueIndex: venueInfo.venueIndex,
                 ownerId: '', ownerName: owner ? owner.trim() : '', ownerIndex: -1,
+                ownerDeptValue: [0, this._pendingIdx || 0],
               };
               if (owner && this.data.userList.length > 0) {
                 const idx = this.data.userList.findIndex(u => u.name === owner.trim());
@@ -343,11 +507,14 @@ Page({
           if (!step) {
             const nameOnly = cleaned.replace(/\s*\(.*?\)\s*/g, '').trim();
             if (nameOnly && nameOnly.length > 1) {
+              const venueInfo = matchStepVenue(nameOnly);
               step = {
                 tempId: ++stepTempId,
                 stepName: nameOnly,
                 startTime: '', endTime: '',
+                venue: venueInfo.venue, venueIndex: venueInfo.venueIndex,
                 ownerId: '', ownerName: '', ownerIndex: -1,
+                ownerDeptValue: [0, this._pendingIdx || 0],
               };
             }
           }
@@ -429,10 +596,12 @@ Page({
       stepName: '',
       startTime: '',
       endTime: '',
+      venue: '',
+      venueIndex: 0,  // 默认"零号店1-3层"
       ownerId: '',
       ownerName: '',
       ownerIndex: -1,
-      ownerDeptValue: [0, 0],  // 默认第一部门第一个人，左右列始终对齐
+      ownerDeptValue: [0, this._pendingIdx || 0],  // 默认"待分配"
     });
     this.setData({ 'form.steps': steps });
   },
@@ -476,6 +645,17 @@ Page({
     const val = e.detail.value;
     const deptName = this._deptNames[val[0]];
     const deptUsers = this._deptUserMap[deptName] || [];
+    // 判断是否选择了「待分配」
+    const isPending = val[1] >= deptUsers.length;
+    if (isPending) {
+      this.setData({
+        [`form.steps[${index}].ownerDeptValue`]: [val[0], -1],
+        [`form.steps[${index}].ownerDeptName`]: deptName,  // 保存部门名，用于通知主管
+        [`form.steps[${index}].ownerId`]: '__pending__',
+        [`form.steps[${index}].ownerName`]: '待分配',
+      });
+      return;
+    }
     const owner = deptUsers[val[1]];
     if (!owner) return;
     this.setData({
@@ -485,16 +665,64 @@ Page({
     });
   },
 
-  // 部门列切换时刷新人员列
+  // 部门列切换时刷新人员列，并默认选中"待分配"
   onStepOwnerColumnChange(e) {
     const { column, value } = e.detail;
     if (column !== 0) return;
+    const stepIdx = e.currentTarget.dataset.index;
     const deptName = this._deptNames[value];
     const deptUsers = this._deptUserMap[deptName] || [];
+    const names = deptUsers.map(u => u.name);
+    names.push('待分配');  // 末尾追加待分配选项
     const range = this.data.deptUserRange.slice();
-    range[1] = deptUsers.map(u => u.name);
-    this.setData({ deptUserRange: range });
+    range[1] = names;
+    // 切换部门时，人员列默认选"待分配"（最后一个）
+    if (stepIdx !== undefined) {
+      this.setData({
+        deptUserRange: range,
+        [`form.steps[${stepIdx}].ownerDeptValue`]: [value, names.length - 1],
+      });
+    } else {
+      this.setData({ deptUserRange: range });
+    }
   },
+
+  // 环节地点变更
+  onStepVenueChange(e) {
+    const index = e.currentTarget.dataset.index;
+    const venueIdx = Number(e.detail.value);
+    const venueList = VENUE_LIST;
+    const venue = venueIdx < venueList.length - 1 ? venueList[venueIdx] : '';
+    if (venueIdx === venueList.length - 1) {
+      // 选"其他（手动输入）"
+      this.setData({ showVenueInput: true, customVenue: '', _venueStepIdx: index });
+    } else {
+      this.setData({
+        [`form.steps[${index}].venue`]: venue,
+        [`form.steps[${index}].venueIndex`]: venueIdx,
+      });
+    }
+  },
+
+  // 手动输入地点确认
+  onCustomVenueInput(e) { this.setData({ customVenue: e.detail.value }); },
+  confirmCustomVenue() {
+    const idx = this.data._venueStepIdx;
+    if (idx === undefined || idx < 0) {
+      wx.showToast({ title: '请先选择环节', icon: 'none' });
+      this.setData({ showVenueInput: false, customVenue: '' });
+      return;
+    }
+    const val = this.data.customVenue.trim();
+    if (!val) { wx.showToast({ title: '请输入地点', icon: 'none' }); return; }
+    this.setData({
+      [`form.steps[${idx}].venue`]: val,
+      [`form.steps[${idx}].venueIndex`]: VENUE_LIST.length - 1,
+      showVenueInput: false,
+      customVenue: '',
+    });
+  },
+  cancelCustomVenue() { this.setData({ showVenueInput: false, customVenue: '' }); },
 
   // 构建部门-人员双列选择器
   _buildDeptUserPicker(userList) {
@@ -504,16 +732,31 @@ Page({
       if (!deptMap[dept]) deptMap[dept] = [];
       deptMap[dept].push(u);
     });
-    const deptNames = Object.keys(deptMap).sort((a, b) => {
-      if (a === '店长组') return 1;
-      if (b === '店长组') return -1;
-      return a.localeCompare(b);
-    });
+    const deptNames = Object.keys(deptMap);
+    // 店长不常用，显式排到末尾，其余按拼音排序
+    const storeIdx = deptNames.indexOf('店长');
+    if (storeIdx !== -1) deptNames.splice(storeIdx, 1);
+    deptNames.sort((a, b) => a.localeCompare(b, 'zh'));
+    if (storeIdx !== -1) deptNames.push('店长');
+    // 当前用户所在部门排到最前
+    const user = getCurrentUser();
+    if (user && user.department) {
+      const myDept = user.department;
+      const myIdx = deptNames.indexOf(myDept);
+      if (myIdx > 0) {
+        deptNames.splice(myIdx, 1);
+        deptNames.unshift(myDept);
+      }
+    }
     this._deptNames = deptNames;
     this._deptUserMap = deptMap;
     const firstDeptUsers = deptNames.length > 0 ? (deptMap[deptNames[0]] || []) : [];
+    // 每个部门的人员列表末尾追加「待分配」选项
+    const firstNames = firstDeptUsers.map(u => u.name);
+    firstNames.push('待分配');
+    this._pendingIdx = firstNames.length - 1;  // "待分配"的索引
     this.setData({
-      deptUserRange: [deptNames, firstDeptUsers.map(u => u.name)],
+      deptUserRange: [deptNames, firstNames],
     });
   },
 
@@ -627,9 +870,8 @@ Page({
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const limitSet = new Set(limits);
     const daysInMonth = new Date(year, month, 0).getDate();
-    // 当月第一天是周几（周一=0）
     let firstDow = new Date(year, month - 1, 1).getDay();
-    firstDow = firstDow === 0 ? 6 : firstDow - 1; // 周日→6
+    firstDow = firstDow === 0 ? 6 : firstDow - 1;
 
     const cells = [];
     for (let d = 1; d <= daysInMonth; d++) {
@@ -639,8 +881,14 @@ Page({
       const cnt = counts[ds] || 0;
       const totalPeople = people[ds] || 0;
       let cls = 'cal-green';
-      if (isLimit) cls = 'cal-purple';
-      else if (cnt > 0) cls = 'cal-yellow';
+      if (isLimit) {
+        cls = 'cal-purple';
+      } else if (cnt > 0) {
+        if (totalPeople >= 300) cls = 'cal-red';
+        else if (totalPeople >= 200) cls = 'cal-orange';
+        else if (totalPeople >= 100) cls = 'cal-orange-light';
+        else cls = 'cal-yellow';
+      }
       cells.push({ day: d, dateStr: ds, count: cnt, totalPeople, isToday, isLimit, cls });
     }
 
@@ -722,9 +970,38 @@ Page({
 
   async _doSubmit(force) {
     try {
+      // 场地冲突检测
+      if (!force) {
+        const steps = (this.data.form.steps || []).filter(s => s.venue && s.startTime && s.endTime);
+        if (steps.length > 0) {
+          const checkRes = await wx.cloud.callFunction({
+            name: 'activities',
+            data: { action: 'checkVenueConflict', activityDate: this.data.form.activityDate, steps }
+          });
+          const cr = checkRes.result;
+          if (cr && cr.code === 1 && cr.data && cr.data.conflicts.length > 0) {
+            const conflicts = cr.data.conflicts;
+            const lines = conflicts.map(c =>
+              `${c.venue}: ${c.conflictTime} ${c.conflictActivity}「${c.conflictStep}」(预订人:${c.conflictBooker})`
+            ).join('\n');
+            this.setData({ submitting: false });
+            this._loading = false;
+            wx.showModal({
+              title: `场地冲突 (${conflicts.length}处)`,
+              content: `${lines}\n\n请沟通使用情况后提交`,
+              confirmText: '已沟通，确认提交',
+              confirmColor: '#D32F2F',
+              success: (r) => {
+                if (r.confirm) this.submitActivity(true); // force 跳过冲突检测
+              },
+            });
+            return;
+          }
+        }
+      }
+
       const data = { ...this.data.form, status: 'pending' };
       if (force) data._forceSubmit = true;
-      // 直接调云函数，截获 code===1
       const res = await wx.cloud.callFunction({
         name: 'activities',
         data: { action: 'create', data }

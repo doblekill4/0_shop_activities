@@ -322,3 +322,5 @@
 .tag-completed { background: #E3F2FD; color: #1565C0; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
 .tag-pending   { background: #FFF3E0; color: #E65100; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
 .tag-settled   { background: #F3E5F5; color: #7B1FA2; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
+
+.step-venue { font-size: 20rpx; color: #1565C0; background: #E3F2FD; padding: 2rpx 10rpx; border-radius: 6rpx; margin-right: 8rpx; }

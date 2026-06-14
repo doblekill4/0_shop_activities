@@ -3,6 +3,7 @@ const {
   getPermissionGroups, createPermissionGroup, updatePermissionGroup, deletePermissionGroup,
   getUsers, updateUser,
 } = require('../../../services/admin');
+const { getCurrentUser } = require('../../../utils/auth');
 
 // 权限中文标签
 const PERM_LABELS = {
@@ -175,6 +176,18 @@ Page({
   manageMembers: function(e) {
     var g = this.data.groups.find(function(x) { return x.id === e.currentTarget.dataset.id; });
     if (!g) return;
+
+    // 部门主管权限限制：非管理员只能调整自己所属权限组的成员
+    var cu = getCurrentUser();
+    if (cu && cu.role !== 'admin') {
+      var myGroupId = cu.permissionGroupId;
+      // 用户只能管理自己所在的权限组（防止跨部门误调）
+      if (myGroupId && myGroupId !== g.id && myGroupId !== g._id) {
+        wx.showToast({ title: '只能管理自己所属权限组的成员', icon: 'none' });
+        return;
+      }
+    }
+
     var allUsers = this.data.allUsers;
     var midSet = new Set((g.members || []).map(function(m) { return m.userId; }));
     var pu = allUsers.map(function(u) {

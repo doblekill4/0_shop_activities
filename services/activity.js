@@ -116,6 +116,47 @@ const markCapacityLimit = (date, remove) => {
   return callCloudFunc('activities', { action: 'markCapacityLimit', date, remove });
 };
 
+/**
+ * 获取云存储文件临时链接（通过云函数管理员权限代理）
+ * 解决体验版中非开发者无法直接获取临时链接的问题
+ * 内置缓存：临时链接有效 2 小时，缓存 1.5 小时后刷新
+ * @param {string[]} fileIDs - 云文件 ID 数组
+ * @returns {Promise<Array<{fileID:string, tempFileURL:string}>>}
+ */
+const _tempUrlCache = {};
+const _TEMP_URL_TTL = 90 * 60 * 1000; // 1.5 小时
+
+const getFileTempURL = async (fileIDs) => {
+  const now = Date.now();
+  const uncached = [];  // 需要从云函数获取的 fileID
+  const cached = [];    // 命中的缓存结果
+
+  for (const fid of fileIDs) {
+    const entry = _tempUrlCache[fid];
+    if (entry && entry.tempFileURL && now < entry.expiresAt) {
+      cached.push({ fileID: fid, tempFileURL: entry.tempFileURL, status: 0 });
+    } else {
+      uncached.push(fid);
+    }
+  }
+
+  // 全部命中缓存，直接返回
+  if (uncached.length === 0) return cached;
+
+  // 部分或全部未命中，调用云函数
+  const result = await callCloudFunc('activities', { action: 'getFileTempURL', fileIDs: uncached });
+  const fileList = Array.isArray(result) ? result : (result && result.data) || [];
+
+  // 更新缓存
+  fileList.forEach(item => {
+    if (item.tempFileURL && item.status === 0) {
+      _tempUrlCache[item.fileID] = { tempFileURL: item.tempFileURL, expiresAt: now + _TEMP_URL_TTL };
+    }
+  });
+
+  return [...cached, ...fileList];
+};
+
 module.exports = {
   getActivityList,
   getActivityDetail,
@@ -130,4 +171,5 @@ module.exports = {
   exportActivities,
   getMonthlyCounts,
   markCapacityLimit,
+  getFileTempURL,
 };

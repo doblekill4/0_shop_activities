@@ -60,7 +60,8 @@ Page({
 
   onShow() {
     const app = getApp();
-    if (!app.globalData.isLoggedIn || !app.globalData.userInfo) {
+    if (!app.globalData.loginReady) return; // 登录检测未完成，等 onLoad 的 _waitForLogin
+    if (!app.globalData.isLoggedIn && !wx.getStorageSync('userInfo')) {
       wx.reLaunch({ url: '/pages/login/login' });
       return;
     }
@@ -82,27 +83,14 @@ Page({
       this._needRefresh = false;
       this.loadActivities(true);
     }
-    // 启动 20 秒自动刷新定时器（避免重复启动）
-    if (!this.data.timer) {
-      const timer = setInterval(() => {
-        this._silentRefresh();
-      }, 60000);
-      this.setData({ timer });
-    }
   },
 
   onHide() {
-    if (this.data.timer) {
-      clearInterval(this.data.timer);
-      this.setData({ timer: null });
-    }
+    // 页面隐藏时标记需要刷新，下次 onShow 自动刷新
+    this._needRefresh = true;
   },
 
   onUnload() {
-    if (this.data.timer) {
-      clearInterval(this.data.timer);
-      this.setData({ timer: null });
-    }
   },
 
   // 下拉刷新
@@ -247,14 +235,15 @@ Page({
       this.setData({ filterDate: dateStr, filterDateMode: modeVal, filterDateLabel: dateStr });
     }
 
-    this._applyFilters();
+    // 日期筛选需重新从云函数拉数据，不能只做内存过滤
+    this.loadActivities(true);
   },
 
   clearDateFilter() {
     this.setData({ filterDate: '', filterDateMode: '', filterDateLabel: '📅 选择日期' });
     const now = new Date();
     this._initMultiSelector(now);
-    this._applyFilters();
+    this.loadActivities(true);
   },
 
   clearStatusFilter() {
@@ -367,57 +356,6 @@ Page({
     this._refreshing = false;
   },
 
-  // 静默刷新：20秒定时器回调，更新列表数据但不跳转滚动位置
-  async _silentRefresh() {
-    // 定时器已被清除（页面已隐藏）或正在手动刷新，中止
-    if (!this.data.timer || this._refreshing) return;
-
-    try {
-      const raw = await getActivityList({
-        page: 1,
-        pageSize: 1000,
-        filterDate: this.data.filterDate,
-        filterDateMode: this.data.filterDateMode,
-        filterStatus: this.data.filterStatus,
-      });
-
-      // 兼容多种返回格式
-      let list, total;
-      if (Array.isArray(raw)) {
-        list = raw;
-        total = raw.length;
-      } else if (raw && Array.isArray(raw.list)) {
-        list = raw.list;
-        total = raw.total || raw.list.length;
-      } else if (raw && Array.isArray(raw.data)) {
-        list = raw.data;
-        total = raw.total || raw.data.length;
-      } else {
-        return;
-      }
-
-      // 格式化列表项，排除系统文档
-      const cleanList = list.filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'));
-      const formatted = cleanList.map(a => this._formatItem(a));
-
-      // 更新原始数据
-      this._allActivities = formatted;
-
-      // 应用筛选（静默模式）
-      const { filtered, activeFilters } = this._applyFilters(true);
-
-      // 更新列表（不显示 loading，不跳转滚动位置）
-      this.setData({
-        activities: filtered,
-        total,
-        hasMore: formatted.length < total,
-        activeFilters,
-      });
-    } catch (e) {
-      console.warn('[_silentRefresh] 失败:', e);
-    }
-  },
-
   _formatItem(a) {
     // 兼容 activityDate 和 date 两种字段名
     const dateVal = a.activityDate || a.date || '';
@@ -439,6 +377,7 @@ Page({
       stepName: s.stepName || '',
       startTime: s.startTime || '',
       endTime: s.endTime || '',
+      venue: s.venue || '',
       status: s.completedAt ? 'done' : 'doing',
     }));
     // 从 vouchers 数组计算三个凭证的上传状态

@@ -18,86 +18,104 @@
     <switch checked="{{includePending}}" bindchange="toggleIncludePending" color="#1890ff" />
   </view>
 
-  <!-- 主体：左侧冻结列 + 右侧可横向滚动区域 -->
-  <view class="gantt-body">
+  <!-- 主体区域：垂直滚动（含活动 + 场地 + 图例） -->
+  <scroll-view scroll-y class="gantt-main-scroll" enhanced>
+    <view class="gantt-body">
 
-    <!-- 左侧冻结列：活动信息 -->
-    <view class="frozen-col">
-      <view class="frozen-header">活动</view>
-      <view
-        class="frozen-row"
-        wx:for="{{activities}}"
-        wx:key="id"
-        style="height:{{item.rowHeight || gridRowHeight}}rpx;"
+      <!-- 左侧冻结列：活动信息 -->
+      <view class="frozen-col">
+        <view class="frozen-header">活动</view>
+        <view
+          class="frozen-row"
+          wx:for="{{activities}}"
+          wx:key="id"
+          style="height:{{item.rowHeight || gridRowHeight}}rpx;"
+        >
+          <view class="frozen-cell">
+            <text class="label-unit">{{item.activityUnit}}</text>
+            <text wx:if="{{item.showStatusTag}}" class="status-tag {{item.statusClass}}">（{{item.statusLabel}}）</text>
+            <text class="label-info">👥 {{item.peopleCount}}人</text>
+            <text class="label-date">{{item.arrivalTime || ''}}</text>
+          </view>
+        </view>
+
+      </view>
+
+      <!-- 右侧可横向滚动区域 -->
+      <scroll-view
+        scroll-x
+        class="gantt-scroll-x"
+        enhanced
       >
-        <view class="frozen-cell">
-          <text class="label-unit">{{item.activityUnit}}</text>
-          <text wx:if="{{item.showStatusTag}}" class="status-tag {{item.statusClass}}">（{{item.statusLabel}}）</text>
-          <text class="label-info">👥 {{item.peopleCount}}人</text>
-          <text class="label-date">{{item.arrivalTime || ''}}</text>
+        <view class="gantt-scroll-inner" style="width:{{timeGridWidth}}rpx;">
+          <!-- 小时表头 -->
+          <view class="hour-header">
+            <view
+              class="hour-cell"
+              wx:for="{{hourSlots}}"
+              wx:key="hour"
+              style="width:{{hourCellWidth}}rpx;"
+            >
+              <text class="hour-label">{{item.label}}</text>
+            </view>
+          </view>
+
+          <!-- 活动行 -->
+          <view
+            class="gantt-row"
+            wx:for="{{activities}}"
+            wx:key="id"
+            bindtap="goDetail"
+            data-id="{{item.id}}"
+            style="height:{{item.rowHeight || gridRowHeight}}rpx;"
+          >
+            <!-- 小时网格背景 -->
+            <view class="hour-cells">
+              <view
+                class="hour-cell-bg"
+                wx:for="{{hourSlots}}"
+                wx:key="hour"
+                style="width:{{hourCellWidth}}rpx;"
+              />
+
+              <!-- 各环节进度条 -->
+              <view
+                class="step-bar"
+                wx:for="{{item.stepsForGantt}}"
+                wx:for-item="step"
+                wx:key="id"
+                style="left:{{step.barLeft}}rpx; top:{{step.barTop}}rpx; width:{{step.barWidth}}rpx; background:{{step.bgColor}}; color:{{step.textColor}}; border:1rpx solid {{step.borderColor}};"
+              >
+                <text class="step-label">{{step.stepName}}</text>
+              </view>
+            </view>
+          </view>
+
+        </view>
+      </scroll-view>
+
+    </view>
+
+    <!-- 今日场地使用（简洁列表） -->
+    <view class="venue-card" wx:if="{{venueOccupancy.length > 0}}">
+      <view class="venue-card-title">📍 今日场地使用</view>
+      <view class="venue-group" wx:for="{{venueOccupancy}}" wx:key="name">
+        <text class="venue-group-name">🏢 {{item.name}}</text>
+        <view class="venue-item" wx:for="{{item.slots}}" wx:for-item="s" wx:key="startTime">
+          <text class="venue-item-time">{{s.startTime}}-{{s.endTime}}</text>
+          <text class="venue-item-unit">{{s.activityUnit}}</text>
+          <text class="venue-item-step">{{s.stepName}}</text>
         </view>
       </view>
     </view>
 
-    <!-- 右侧可横向滚动区域 -->
-    <scroll-view
-      scroll-x
-      class="gantt-scroll-x"
-      enhanced
-    >
-      <view class="gantt-scroll-inner" style="width:{{timeGridWidth}}rpx;">
-        <!-- 小时表头 -->
-        <view class="hour-header">
-          <view
-            class="hour-cell"
-            wx:for="{{hourSlots}}"
-            wx:key="hour"
-            style="width:{{hourCellWidth}}rpx;"
-          >
-            <text class="hour-label">{{item.label}}</text>
-          </view>
-        </view>
+    <!-- 图例 -->
+    <view class="legend-bar">
+      <view class="legend-item"><view class="legend-dot pending" /><text>待完成</text></view>
+      <view class="legend-item"><view class="legend-dot doing" /><text>进行中</text></view>
+      <view class="legend-item"><view class="legend-dot done" /><text>已完成</text></view>
+    </view>
 
-        <!-- 活动行 -->
-        <view
-          class="gantt-row"
-          wx:for="{{activities}}"
-          wx:key="id"
-          bindtap="goDetail"
-          data-id="{{item.id}}"
-          style="height:{{item.rowHeight || gridRowHeight}}rpx;"
-        >
-          <!-- 小时网格背景 -->
-          <view class="hour-cells">
-            <view
-              class="hour-cell-bg"
-              wx:for="{{hourSlots}}"
-              wx:key="hour"
-              style="width:{{hourCellWidth}}rpx;"
-            />
-
-            <!-- 各环节进度条 -->
-            <view
-              class="step-bar"
-              wx:for="{{item.stepsForGantt}}"
-              wx:for-item="step"
-              wx:key="id"
-              style="left:{{step.barLeft}}rpx; top:{{step.barTop}}rpx; width:{{step.barWidth}}rpx; background:{{step.bgColor}}; color:{{step.textColor}}; border:1rpx solid {{step.borderColor}};"
-            >
-              <text class="step-label">{{step.stepName}}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
-
-  </view>
-
-  <!-- 图例 -->
-  <view class="legend-bar">
-    <view class="legend-item"><view class="legend-dot pending" /><text>待完成</text></view>
-    <view class="legend-item"><view class="legend-dot doing" /><text>进行中</text></view>
-    <view class="legend-item"><view class="legend-dot done" /><text>已完成</text></view>
-  </view>
+  </scroll-view>
 
 </view>

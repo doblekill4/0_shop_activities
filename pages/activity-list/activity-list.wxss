@@ -258,6 +258,20 @@
   white-space: nowrap;
 }
 
+/* 环节地点徽章 */
+.step-venue {
+  font-size: 20rpx;
+  color: #1565C0;
+  background: #E3F2FD;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+  max-width: 160rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 环节时间 */
 .step-time {
   font-size: 22rpx;

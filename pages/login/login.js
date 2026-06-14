@@ -68,13 +68,21 @@ Page({
   // ===== 检测群入口 =====
   _checkGroupEntry() {
     try {
+      // 先用 scene 判断是否从群聊进入（scene 1044=群聊会话）
+      const options = wx.getEnterOptionsSync ? wx.getEnterOptionsSync() : {};
+      console.log('[login] enterOptions:', JSON.stringify(options));
+      const fromGroupScene = options.scene === 1044 || options.scene === 1008; // 1044=群聊, 1008=群内卡片
+
       const groupInfo = wx.getGroupEnterInfo ? wx.getGroupEnterInfo() : null;
+      console.log('[login] groupEnterInfo:', JSON.stringify(groupInfo));
       if (groupInfo && groupInfo.encryptedData) {
-        // 保存群加密信息，传给云函数解密比对
         this._groupEncryptedData = groupInfo.encryptedData;
         this._groupIv = groupInfo.iv;
         this.setData({ isEmployee: true, fromGroup: true });
         console.log('[login] 检测到群入口，加密数据已保存');
+      } else if (fromGroupScene && groupInfo) {
+        // 从群进入但无加密数据（可能体验版受限），先标记
+        console.log('[login] 从群进入但无加密数据(scene=' + options.scene + ')，可能体验版限制');
       }
     } catch (e) {
       console.warn('[login] getGroupEnterInfo 失败', e);
@@ -163,14 +171,16 @@ Page({
         }
       }
 
+      const enterOptions = wx.getEnterOptionsSync ? wx.getEnterOptionsSync() : {};
       await login({
         name: name.trim(),
         nickname: nickname.trim() || name.trim(),
         employeeId: employeeId.trim(),
         department: department,
         avatarUrl: finalAvatarUrl,
-        fromGroup: isEmployee,
+        fromGroup: isEmployee || enterOptions.scene === 1044,
         groupEncryptedData: this._groupEncryptedData || '',
+        scene: enterOptions.scene || 0,
         groupIv: this._groupIv || '',
       });
 

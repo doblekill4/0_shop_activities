@@ -99,6 +99,15 @@
               </view>
             </view>
           </view>
+          <!-- 环节地点 -->
+          <view class="form-item">
+            <text class="form-label">地点</text>
+            <picker mode="selector" range="{{venueOptions}}"
+              value="{{item.venueIndex != null && item.venueIndex >= 0 ? item.venueIndex : 0}}"
+              bindchange="onStepVenueChange" data-index="{{index}}">
+              <view class="form-input picker-value">{{item.venue || '请选择地点'}}</view>
+            </picker>
+          </view>
           <view class="form-item">
             <text class="form-label">负责人</text>
             <!-- 管理员：部门+人员双列选择 -->

@@ -43,6 +43,12 @@ exports.main = async (event, context) => {
         return await markCapacityLimit(event, openid);
       case 'getCapacityLimits':
         return await getCapacityLimits(event);
+      case 'getFileTempURL':
+        return await getFileTempURL(event);
+      case 'checkVenueConflict':
+        return await checkVenueConflict(event);
+      case 'getVenueOccupancy':
+        return await getVenueOccupancy(event);
       default:
         return { code: -1, message: '未知操作' };
     }
@@ -111,7 +117,7 @@ async function getActivityList(event, openid) {
 
   // 过滤系统文档，动态计算状态
   const list = res.data
-    .filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'))
+    .filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_') && !String(a._id).startsWith('_task_') && a._type !== 'scheduled_msg')
     .map(a => {
       a.status = computeStatusFromVouchers(a.vouchers, a.status);
       return a;
@@ -265,6 +271,11 @@ async function createActivity(event, openid) {
     console.error('[createActivity] 验证异常:', e);
   }
 
+  // 异步调度通知任务（不阻塞创建返回）
+  if (cleanDoc.status !== 'draft') {
+    scheduleNotificationsAsync(_id);
+  }
+
   return { code: 0, data: { id: _id }, message: '创建成功' };
 }
 
@@ -295,6 +306,8 @@ async function updateActivity(event, openid) {
   updateData.revisionLog = existingRevisionLog;
 
   await db.collection('activities').doc(id).update({ data: updateData });
+  // 异步调度通知任务（若状态变更可能影响通知时机）
+  scheduleNotificationsAsync(id);
   return { code: 0, message: '更新成功' };
 }
 
@@ -651,7 +664,7 @@ async function getMonthlyCounts(event) {
   const countMap = {};      // { date: count }
   const peopleMap = {};     // { date: totalPeople }
   res.data.forEach(a => {
-    if (!String(a._id).startsWith('_system_')) {
+    if (!String(a._id).startsWith('_system_') && !String(a._id).startsWith('_task_') && a._type !== 'scheduled_msg') {
       countMap[a.activityDate] = (countMap[a.activityDate] || 0) + 1;
       peopleMap[a.activityDate] = (peopleMap[a.activityDate] || 0) + (a.peopleCount || 0);
     }
@@ -667,4 +680,131 @@ async function getMonthlyCounts(event) {
   } catch (e) { /* 忽略 */ }
 
   return { code: 0, data: { counts: countMap, people: peopleMap, limits }, message: 'success' };
+}
+
+/* ========== 获取云存储文件临时链接（管理员权限代理） ========== */
+/**
+ * 体验版中非开发者使用客户端 SDK 的 getTempFileURL / downloadFile 可能因
+ * 云存储权限问题而失败。此接口在云函数端（管理员权限）获取临时链接返回给客户端。
+ */
+async function getFileTempURL(event) {
+  const { fileIDs } = event;
+  if (!fileIDs || !Array.isArray(fileIDs) || fileIDs.length === 0) {
+    return { code: -1, message: 'fileIDs 不能为空' };
+  }
+  try {
+    const res = await cloud.getTempFileURL({ fileList: fileIDs });
+    return { code: 0, data: res.fileList, message: 'success' };
+  } catch (e) {
+    console.error('[getFileTempURL] 获取临时链接失败:', e.message);
+    return { code: -1, message: '获取临时链接失败: ' + (e.message || '') };
+  }
+}
+
+/* ========== 异步触发通知调度（fire-and-forget） ========== */
+function scheduleNotificationsAsync(activityId) {
+  cloud.callFunction({
+    name: 'notifications',
+    data: { action: 'scheduleForActivity', activityId },
+  }).then(() => {
+    console.log('[scheduleNotificationsAsync] 调度成功:', activityId);
+  }).catch(e => {
+    console.warn('[scheduleNotificationsAsync] 调度失败:', activityId, e.message);
+  });
+}
+
+/* ========== 场地冲突检测 ========== */
+/**
+ * 检测提交的环节是否与已有正式活动（confirmed/settled）冲突
+ * 输入: { activityDate, steps: [{ stepName, startTime, endTime, venue }], excludeId }
+ * 返回: { code: 0/1, data: { conflicts: [...] } }
+ */
+async function checkVenueConflict(event) {
+  const { activityDate, steps, excludeId } = event;
+  if (!activityDate || !steps || !steps.length) {
+    return { code: 0, data: { conflicts: [] }, message: '无环节无需检测' };
+  }
+
+  // 查当天所有正式活动（confirmed/settled），排除自身
+  const where = {
+    activityDate,
+    status: _.in(['confirmed', 'settled']),
+  };
+  if (excludeId) where._id = _.neq(excludeId);
+
+  const res = await db.collection('activities')
+    .where(where)
+    .field({ _id: true, activityUnit: true, bookingPerson: true, steps: true })
+    .get();
+
+  const existingActs = (res.data || []).filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'));
+  const conflicts = [];
+
+  for (const newStep of steps) {
+    if (!newStep.venue || !newStep.startTime || !newStep.endTime) continue;
+    const [nsH, nsM] = newStep.startTime.split(':').map(Number);
+    const [neH, neM] = newStep.endTime.split(':').map(Number);
+    const newStart = nsH * 60 + nsM;
+    const newEnd = neH * 60 + neM;
+    if (isNaN(newStart) || isNaN(newEnd)) continue;
+
+    for (const act of existingActs) {
+      for (const exStep of (act.steps || [])) {
+        if (!exStep.venue || exStep.venue !== newStep.venue) continue;
+        if (!exStep.startTime || !exStep.endTime) continue;
+        const [esH, esM] = exStep.startTime.split(':').map(Number);
+        const [eeH, eeM] = exStep.endTime.split(':').map(Number);
+        const exStart = esH * 60 + esM;
+        const exEnd = eeH * 60 + eeM;
+        if (isNaN(exStart) || isNaN(exEnd)) continue;
+
+        // 时间段重叠判断: not (newEnd <= exStart || newStart >= exEnd)
+        if (newEnd > exStart && newStart < exEnd) {
+          conflicts.push({
+            venue: newStep.venue,
+            newStepName: newStep.stepName || '未命名环节',
+            newTime: `${newStep.startTime}-${newStep.endTime}`,
+            conflictActivity: act.activityUnit || '未知活动',
+            conflictStep: exStep.stepName || '未命名环节',
+            conflictTime: `${exStep.startTime}-${exStep.endTime}`,
+            conflictBooker: act.bookingPerson || '未知',
+          });
+        }
+      }
+    }
+  }
+
+  if (conflicts.length > 0) {
+    return { code: 1, data: { conflicts }, message: `发现 ${conflicts.length} 处场地冲突` };
+  }
+  return { code: 0, data: { conflicts: [] }, message: '无冲突' };
+}
+
+/* ========== 场地占用查询（可视化用） ========== */
+async function getVenueOccupancy(event) {
+  const { activityDate } = event;
+  if (!activityDate) return { code: -1, message: '缺少活动日期' };
+
+  const res = await db.collection('activities')
+    .where({ activityDate, status: _.in(['confirmed', 'settled']) })
+    .field({ activityUnit: true, bookingPerson: true, steps: true })
+    .get();
+
+  const occupancy = {};
+  (res.data || []).forEach(act => {
+    if (String(act._id).startsWith('_system_') || String(act._id).startsWith('_limit_')) return;
+    (act.steps || []).forEach(step => {
+      if (!step.venue || !step.startTime || !step.endTime) return;
+      if (!occupancy[step.venue]) occupancy[step.venue] = [];
+      occupancy[step.venue].push({
+        activityUnit: act.activityUnit || '',
+        bookingPerson: act.bookingPerson || '',
+        stepName: step.stepName || '',
+        startTime: step.startTime,
+        endTime: step.endTime,
+      });
+    });
+  });
+
+  return { code: 0, data: occupancy, message: 'success' };
 }

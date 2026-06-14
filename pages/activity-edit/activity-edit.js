@@ -1,14 +1,23 @@
 // pages/activity-edit/activity-edit.js
-// 编辑页复用创建页逻辑，额外加载原始数据并做差异对比生成修订记录
 const { getActivityDetail, updateActivity } = require('../../services/activity');
 const { getUsers } = require('../../services/admin');
 const { formatDate } = require('../../utils/format');
 const { getCurrentUser, isAdmin, hasPermission } = require('../../utils/auth');
 
+const VENUE_LIST = [
+  '零号店1-3层', '零号店正门', '吧台后方书吧', '吧台沙发区', '吧台前台',
+  '战略报告厅', '大包间', '小包间', '西餐厅',
+  '散台小吃用餐区', '散台圆桌', '二层', '三层',
+  '三层LED区', '四层DIY区', '五层多功能厅',
+  '五层会议室一', '五层会议室二', '五层圆桌会议室',
+  '员工餐厅', '元宇宙数字化工厂', '其他（手动输入）',
+];
+
 Page({
   data: {
     activityId: null,
     form: {},
+    venueOptions: VENUE_LIST,
     originalForm: {},   // 保存原始值，用于对比生成修订摘要
     originalStatus: '', // 原始活动状态（用于判断是否是草稿）
     isAdmin: false,     // 是否管理员（控制预订人可编辑性）
@@ -83,12 +92,15 @@ Page({
         venueUsage:       detail.venueUsage || '',
         steps:            (detail.steps || []).map(s => {
           const owner = (userList || []).find(u => u._id === s.ownerId || u.userId === s.ownerId);
+          const vIdx = s.venue ? VENUE_LIST.indexOf(s.venue) : -1;
           return {
             id:          s._id || s.id,
             tempId:      s._id || s.id,
             stepName:    s.stepName,
             startTime:   s.startTime,
             endTime:     s.endTime,
+            venue:       s.venue || '',
+            venueIndex:  vIdx >= 0 ? vIdx : VENUE_LIST.length - 1,
             ownerId:     s.ownerId,
             ownerName:   s.ownerName,
             completedAt: s.completedAt,
@@ -106,6 +118,19 @@ Page({
         invoiceNeeds:     detail.invoiceNeeds || '',
         sachetAccount:    detail.sachetAccount || '',
       };
+
+      // 修正双列选择器右列：确保初始显示选中部门的人员（而非默认为第一部门）
+      if (isAdmin && form.steps.length > 0) {
+        const firstStep = form.steps[0];
+        if (firstStep.ownerDeptValue && firstStep.ownerDeptValue[0] >= 0) {
+          const deptName = this._deptNames[firstStep.ownerDeptValue[0]];
+          const deptUsers = (this._deptUserMap[deptName] || []).map(u => u.name);
+          deptUsers.push('待分配');
+          const range = this.data.deptUserRange.slice();
+          range[1] = deptUsers;
+          this.setData({ deptUserRange: range });
+        }
+      }
 
       this.setData({
         form,
@@ -160,7 +185,10 @@ Page({
     const steps = [...this.data.form.steps, {
       tempId: Date.now(),
       stepName: '', startTime: '', endTime: '',
+      venue: '',
+      venueIndex: 0,  // 默认"零号店1-3层"
       ownerId: '', ownerName: '', ownerIndex: -1,
+      ownerDeptValue: [0, this._pendingIdx || 0],  // 默认"待分配"
     }];
     this.setData({ 'form.steps': steps });
     this.setData({ showSachet: this._shouldShowSachet() });
@@ -203,6 +231,17 @@ Page({
     const val = e.detail.value;
     const deptName = this._deptNames[val[0]];
     const deptUsers = this._deptUserMap[deptName] || [];
+    // 判断是否选择了「待分配」
+    const isPending = val[1] >= deptUsers.length;
+    if (isPending) {
+      this.setData({
+        [`form.steps[${index}].ownerDeptValue`]: [val[0], -1],
+        [`form.steps[${index}].ownerDeptName`]: deptName,
+        [`form.steps[${index}].ownerId`]: '__pending__',
+        [`form.steps[${index}].ownerName`]: '待分配',
+      });
+      return;
+    }
     const owner = deptUsers[val[1]];
     if (!owner) return;
     this.setData({
@@ -212,15 +251,37 @@ Page({
     });
   },
 
-  // 部门列切换时刷新人员列
+  // 部门列切换时刷新人员列，并默认选中"待分配"
   onStepOwnerColumnChange(e) {
     const { column, value } = e.detail;
     if (column !== 0) return;
+    const stepIdx = e.currentTarget.dataset.index;
     const deptName = this._deptNames[value];
     const deptUsers = this._deptUserMap[deptName] || [];
+    const names = deptUsers.map(u => u.name);
+    names.push('待分配');
     const range = this.data.deptUserRange.slice();
-    range[1] = deptUsers.map(u => u.name);
-    this.setData({ deptUserRange: range });
+    range[1] = names;
+    // 切换部门时，人员列默认选"待分配"（最后一个）
+    if (stepIdx !== undefined) {
+      this.setData({
+        deptUserRange: range,
+        [`form.steps[${stepIdx}].ownerDeptValue`]: [value, names.length - 1],
+      });
+    } else {
+      this.setData({ deptUserRange: range });
+    }
+  },
+
+  // 环节地点变更
+  onStepVenueChange(e) {
+    const index = e.currentTarget.dataset.index;
+    const venueIdx = Number(e.detail.value);
+    const venue = venueIdx < VENUE_LIST.length - 1 ? VENUE_LIST[venueIdx] : '';
+    this.setData({
+      [`form.steps[${index}].venue`]: venue,
+      [`form.steps[${index}].venueIndex`]: venueIdx,
+    });
   },
 
   // 构建部门-人员双列选择器
@@ -231,16 +292,30 @@ Page({
       if (!deptMap[dept]) deptMap[dept] = [];
       deptMap[dept].push(u);
     });
-    const deptNames = Object.keys(deptMap).sort((a, b) => {
-      if (a === '店长组') return 1;
-      if (b === '店长组') return -1;
-      return a.localeCompare(b);
-    });
+    const deptNames = Object.keys(deptMap);
+    // 店长不常用，显式排到末尾，其余按拼音排序
+    const storeIdx = deptNames.indexOf('店长');
+    if (storeIdx !== -1) deptNames.splice(storeIdx, 1);
+    deptNames.sort((a, b) => a.localeCompare(b, 'zh'));
+    if (storeIdx !== -1) deptNames.push('店长');
+    // 当前用户所在部门排到最前
+    const user = getCurrentUser();
+    if (user && user.department) {
+      const myDept = user.department;
+      const myIdx = deptNames.indexOf(myDept);
+      if (myIdx > 0) {
+        deptNames.splice(myIdx, 1);
+        deptNames.unshift(myDept);
+      }
+    }
     this._deptNames = deptNames;
     this._deptUserMap = deptMap;
     const firstDeptUsers = deptNames.length > 0 ? (deptMap[deptNames[0]] || []) : [];
+    const firstNames = firstDeptUsers.map(u => u.name);
+    firstNames.push('待分配');
+    this._pendingIdx = firstNames.length - 1;
     this.setData({
-      deptUserRange: [deptNames, firstDeptUsers.map(u => u.name)],
+      deptUserRange: [deptNames, firstNames],
     });
   },
 

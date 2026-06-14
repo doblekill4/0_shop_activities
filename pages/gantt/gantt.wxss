@@ -26,15 +26,14 @@
 .nav-title { text-align: center; }
 .nav-date { font-size: 26rpx; color: #ffffff; font-weight: 600; display: block; }
 
-/* 主体：外层纵向滚动容器 */
-.gantt-body-scroll {
+/* 主体垂直滚动容器 */
+.gantt-main-scroll {
   flex: 1;
-  height: 0; /* 让 flex:1 正确生效 */
+  height: 0;
 }
 
 .gantt-body {
   display: flex;
-  min-height: 100%;
 }
 
 /* ---- 左侧冻结列 ---- */
@@ -119,6 +118,7 @@
   font-size: 20rpx;
   color: #888;
   border-right: 1rpx solid #e0e0e0;
+  box-sizing: border-box;
 }
 
 /* 活动行 */
@@ -141,7 +141,8 @@
 .hour-cell-bg {
   /* width 由内联样式动态设置（hourCellWidth） */
   flex-shrink: 0;
-  border-right: 1rpx solid #f5f5f5;
+  border-right: 1rpx solid #e0e0e0;
+  box-sizing: border-box;
 }
 
 /* 环节进度条 - 颜色由内联 barStyle 控制，此处只负责形状和排版 */
@@ -216,4 +217,59 @@
   font-size: 24rpx;
   color: #666;
   margin-right: 12rpx;
+}
+
+/* 今日场地使用（简洁列表） */
+.venue-card {
+  margin: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+.venue-card-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #2E7D32;
+  padding: 16rpx 24rpx;
+  background: #E8F5E9;
+  border-bottom: 1rpx solid #C8E6C9;
+}
+.venue-group {
+  padding: 12rpx 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.venue-group:last-child {
+  border-bottom: none;
+}
+.venue-group-name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.venue-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 6rpx 0 6rpx 16rpx;
+  border-left: 3rpx solid #E3F2FD;
+  margin: 4rpx 0;
+}
+.venue-item-time {
+  font-size: 22rpx;
+  color: #1565C0;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 120rpx;
+}
+.venue-item-unit {
+  font-size: 24rpx;
+  color: #444;
+}
+.venue-item-step {
+  font-size: 22rpx;
+  color: #999;
+  margin-left: 4rpx;
 }

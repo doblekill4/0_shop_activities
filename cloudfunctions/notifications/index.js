@@ -1,11 +1,13 @@
-// cloudfunctions/notifications/index.js - 通知功能云函数
+// cloudfunctions/notifications/index.js - 通知功能云函数（事件驱动模式）
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
 // 订阅消息模板 ID
-const TMPL_ID = 'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70';
+const TMPL_ID = 'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70';            // 定时提醒（活动/环节开始前）
+const TMPL_CLEAN = 'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg';         // 清洁任务提醒
+const TMPL_STATUS = 'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA';        // 活动状态变更通知
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
@@ -25,6 +27,10 @@ exports.main = async (event, context) => {
         return await hookStepCompleted(event, openid);
       case 'scanAndNotify':
         return await scanAndNotify();
+      case 'scheduleForActivity':
+        return await scheduleForActivity(event);
+      case 'testSend':
+        return await testSend(event, openid);
       default:
         return { code: -1, message: '未知操作' };
     }
@@ -59,40 +65,52 @@ async function sendChangeNotification(event, openid) {
     createdAt: new Date(),
   }));
 
+  let sentCount = 0;
   if (notifications.length > 0) {
-    // 批量插入通知记录
     for (const n of notifications) {
       await db.collection('notifications').add({ data: n });
+      // 使用活动状态变更通知模板
+      const statusLabel = { draft: '草稿', pending: '待确认', confirmed: '已确认', settled: '已结算' };
+      await sendSubscribeMsg(n.openid, {
+        time4: { value: actRes.data.arrivalTime || actRes.data.activityDate || '' },
+        thing1: { value: n.activityUnit },
+        thing2: { value: n.message || '活动信息已更新，请查看' },
+        phrase3: { value: statusLabel[actRes.data.status] || '已更新' },
+        thing7: { value: actRes.data.bookingPerson || actRes.data.creatorName || '活动负责人' },
+      }, activityId, TMPL_STATUS);
+      sentCount++;
     }
   }
 
-  return { code: 0, data: { sentCount: notifications.length }, message: '通知已发送' };
+  return { code: 0, data: { sentCount }, message: '通知已发送' };
 }
 
-/* ========== 配置提醒规则 ========== */
+/* ========== 配置提醒规则（保存后触发调度） ========== */
 async function configureReminders(event, openid) {
   const { activityId, rules } = event;
 
   if (activityId === 'global') {
-    // 全局规则存到 activities 集合的特殊文档中（_system_global_rules）
     try {
       await db.collection('activities').doc('_system_global_rules').set({
         data: { key: 'global_reminder_rules', value: rules, updatedAt: new Date() }
       });
     } catch (e) {
-      // set 失败（文档已存在），改用 update
       await db.collection('activities').doc('_system_global_rules').update({
         data: { value: rules, updatedAt: new Date() }
       });
     }
-    return { code: 0, message: '全局规则已更新' };
+    // 全局规则变更 → 重新调度所有今日活动
+    await scheduleAllToday();
+    return { code: 0, message: '全局规则已更新，已重新调度今日通知' };
   }
 
-  // 活动级规则存到活动文档
+  // 活动级规则
   await db.collection('activities').doc(activityId).update({
     data: { reminderRules: rules, updatedAt: new Date() }
   });
-  return { code: 0, message: '提醒规则已更新' };
+  // 重新调度该活动的通知任务
+  const scheduleResult = await scheduleForActivity({ activityId });
+  return { code: 0, data: scheduleResult.data, message: '提醒规则已更新，已重新调度通知' };
 }
 
 /* ========== 加载全局提醒规则 ========== */
@@ -108,16 +126,14 @@ async function loadGlobalReminders() {
 /* ========== 获取通知历史 ========== */
 async function getNotificationHistory(event, openid) {
   const { activityId } = event;
-
   const res = await db.collection('notifications')
     .where({ activityId })
     .orderBy('createdAt', 'desc')
     .get();
-
   return { code: 0, data: res.data, message: 'success' };
 }
 
-/* ========== 环节完成后通知下一环节负责人 ========== */
+/* ========== 环节完成后通知（实时触发，不走任务队列） ========== */
 async function hookStepCompleted(event, openid) {
   const { activityId, stepIndex } = event;
   const actRes = await db.collection('activities').doc(activityId).get();
@@ -125,7 +141,6 @@ async function hookStepCompleted(event, openid) {
 
   const steps = actRes.data.steps || [];
 
-  // 合并全局规则 + 活动级规则
   let rules = actRes.data.reminderRules || [];
   try {
     const gRes = await db.collection('activities').doc('_system_global_rules').get();
@@ -134,19 +149,26 @@ async function hookStepCompleted(event, openid) {
     }
   } catch (e) { /* 忽略 */ }
 
-  // 1) 下一环节通知（timingIndex === 3）
+  console.log('[hookStepCompleted] stepIndex:', stepIndex, 'rules:', rules.length, 'timingIndex:', rules.map(r => r.timingIndex));
+
+  // 下一环节通知（timingIndex === 3）：跳过已完成的环节，顺延通知下一个未完成环节
   const hasNextStep = rules.some(r => r.timingIndex === 3);
+  console.log('[hookStepCompleted] hasNextStep:', hasNextStep, 'steps total:', steps.length);
   if (hasNextStep) {
-    const nextStep = steps[stepIndex + 1];
+    let nextIdx = stepIndex + 1;
+    while (nextIdx < steps.length && steps[nextIdx].completedAt) {
+      nextIdx++; // 跳过已完成的环节
+    }
+    const nextStep = steps[nextIdx];
     if (nextStep && nextStep.ownerId) {
       const userRes = await db.collection('users').doc(nextStep.ownerId).get().catch(() => null);
       if (userRes && userRes.data && userRes.data.openid) {
         await sendSubscribeMsg(userRes.data.openid, {
-          thing1: { value: steps[stepIndex].stepName || '上一环节' },
-          thing2: { value: nextStep.stepName || '下一环节' },
-          thing3: { value: actRes.data.activityUnit || '' },
-          time4: { value: nextStep.startTime || '' },
-          thing5: { value: '上一环节已完成，请准备' },
+          thing24: { value: actRes.data.activityUnit || '' },
+          thing12: { value: `${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}` },
+          thing10: { value: actRes.data.venue || '' },
+          name3: { value: nextStep.ownerName || userRes.data.name || '' },
+          time27: { value: nextStep.startTime || '' },
         }, actRes.data._id);
         await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
           `上一环节「${steps[stepIndex].stepName}」已完成→「${nextStep.stepName}」`);
@@ -154,31 +176,35 @@ async function hookStepCompleted(event, openid) {
     }
   }
 
-  // 2) 每一流程结束后通知指定部门（timingIndex === 4）
+  // 每环节结束后通知指定部门主管（timingIndex === 4）→ 使用清洁任务提醒模板
   const deptRules = rules.filter(r => r.timingIndex === 4);
   for (const rule of deptRules) {
     const doneStep = steps[stepIndex];
     const targets = rule.targets || [];
-    for (const t of targets) {
-      const uRes = await db.collection('users').where({ name: t.name }).get().catch(() => ({ data: [] }));
-      if (uRes.data && uRes.data[0] && uRes.data[0].openid) {
-        await sendSubscribeMsg(uRes.data[0].openid, {
-          thing1: { value: actRes.data.activityUnit || '' },
-          thing2: { value: (doneStep && doneStep.stepName) || '环节' },
-          thing3: { value: actRes.data.venue || '' },
-          time4: { value: actRes.data.arrivalTime || '' },
-          thing5: { value: '请检查并安排清洁' },
-        }, actRes.data._id);
-        await recordNotification(activityId, uRes.data[0]._id, t.name,
-          `活动「${actRes.data.activityUnit}」环节「${(doneStep && doneStep.stepName) || ''}」完成→请清洁`);
-      }
+    const deptNames = targets.map(t => t.name);
+    const supervisors = [];
+    for (const deptName of deptNames) {
+      const deptSups = await findDepartmentSupervisors(deptName);
+      supervisors.push(...deptSups);
+    }
+    const notified = new Set();
+    for (const sup of supervisors) {
+      if (!sup.openid || notified.has(sup.openid)) continue;
+      notified.add(sup.openid);
+      await sendSubscribeMsg(sup.openid, {
+        time3: { value: new Date().toTimeString().slice(0, 5) },
+        thing1: { value: actRes.data.venue || '零号店' },
+        thing2: { value: `活动「${actRes.data.activityUnit || ''}」环节「${(doneStep && doneStep.stepName) || ''}」已完成，请安排清洁` },
+      }, actRes.data._id, TMPL_CLEAN);
+      await recordNotification(activityId, sup._id, sup.name,
+        `活动「${actRes.data.activityUnit}」环节「${(doneStep && doneStep.stepName) || ''}」完成→请清洁`);
     }
   }
 
   return { code: 0, message: '通知检查完成' };
 }
 
-/* ========== 用户缓存（批量查，避免 N+1） ========== */
+/* ========== 用户缓存 ========== */
 let _userCache = null;
 let _userCacheTime = 0;
 async function getUserCache() {
@@ -186,6 +212,7 @@ async function getUserCache() {
   const res = await db.collection('users').limit(200).get();
   _userCache = {};
   (res.data || []).forEach(u => {
+    if (u.status === 'inactive') return; // 离职用户不入缓存
     if (u.name) _userCache[u.name] = u;
     if (u._id) _userCache[u._id] = u;
   });
@@ -193,149 +220,320 @@ async function getUserCache() {
   return _userCache;
 }
 
-/* ========== 定时扫描并发送提醒（由定时触发器调用） ========== */
+/* ========== 为单个活动预生成通知任务 ========== */
+async function scheduleForActivity(event) {
+  const { activityId } = event;
+
+  // 1. 删除该活动旧的未发送任务
+  await deleteActivityTasks(activityId);
+
+  // 2. 加载活动数据
+  const actRes = await db.collection('activities').doc(activityId).get();
+  if (!actRes.data) return { code: 404, message: '活动不存在' };
+  const act = actRes.data;
+  if (act.status === 'draft') return { code: 0, data: { created: 0 }, message: '草稿不调度' };
+
+  // 3. 合并规则
+  let rules = act.reminderRules || [];
+  try {
+    const gRes = await db.collection('activities').doc('_system_global_rules').get();
+    if (gRes.data && gRes.data.value) {
+      rules = [...(gRes.data.value || []), ...rules];
+    }
+  } catch (e) { /* 忽略 */ }
+
+  if (rules.length === 0) return { code: 0, data: { created: 0 }, message: '无规则' };
+
+  // 4. 预加载用户缓存
+  const userCache = await getUserCache();
+  const tasks = [];
+  const activityDate = act.activityDate;
+  const arrivalTime = act.arrivalTime || '08:00';
+  const [aH, aM] = arrivalTime.split(':').map(Number);
+  const baseDate = new Date(activityDate + 'T00:00:00');
+  const activityStart = new Date(baseDate.getTime() + (aH || 8) * 3600000 + (aM || 0) * 60000);
+  const steps = act.steps || [];
+
+  for (const rule of rules) {
+    const targets = rule.targets || [];
+
+    if (rule.timingIndex === 0) {
+      // 「活动开始前 N 分钟」通知指定人员
+      const triggerAt = new Date(activityStart.getTime() - (rule.minutes || 30) * 60000);
+      for (const t of targets) {
+        const user = userCache[t.name];
+        if (!user || !user.openid) continue;
+        tasks.push(createTask(activityId, user, {
+          thing24: { value: act.activityUnit || '' },
+          thing12: { value: `${rule.minutes || 30}分钟后开始` },
+          thing10: { value: act.venue || '' },
+          name3: { value: user.name || act.creatorName || '' },
+          time27: { value: arrivalTime || act.activityDate || '' },
+        }, triggerAt));
+      }
+    } else if (rule.timingIndex === 1) {
+      // 「活动结束后 N 分钟」通知指定人员
+      const endTime = new Date(baseDate.getTime() + 18 * 3600000); // 默认 18:00
+      const triggerAt = new Date(endTime.getTime() + (rule.minutes || 30) * 60000);
+      for (const t of targets) {
+        const user = userCache[t.name];
+        if (!user || !user.openid) continue;
+        tasks.push(createTask(activityId, user, {
+          thing24: { value: act.activityUnit || '' },
+          thing12: { value: '活动已结束' },
+          thing10: { value: act.venue || '' },
+          name3: { value: user.name || act.creatorName || '' },
+          time27: { value: arrivalTime || act.activityDate || '' },
+        }, triggerAt));
+      }
+    } else if (rule.timingIndex === 2) {
+      // 「流程开始前 N 分钟」通知环节负责人
+      for (const step of steps) {
+        if (!step.startTime || !step.ownerId) continue;
+        const [sH, sM] = step.startTime.split(':').map(Number);
+        const stepStart = new Date(baseDate.getTime() + (sH || 0) * 3600000 + (sM || 0) * 60000);
+        const triggerAt = new Date(stepStart.getTime() - (rule.minutes || 30) * 60000);
+        const user = userCache[step.ownerId];
+        if (!user || !user.openid) continue;
+        tasks.push(createTask(activityId, user, {
+          thing24: { value: act.activityUnit || '' },
+          thing12: { value: `${step.stepName || ''}即将开始` },
+          thing10: { value: act.venue || '' },
+          name3: { value: step.ownerName || user.name || '' },
+          time27: { value: step.startTime || '' },
+        }, triggerAt));
+      }
+    }
+    // timingIndex 3/4 由 hookStepCompleted 实时触发，不需要预调度
+  }
+
+  // 5. 批量写入任务文档（_task_YYYYMMDD_{activityId}_{index}）
+  let created = 0;
+  for (const task of tasks) {
+    try {
+      await db.collection('activities').add({ data: task });
+      created++;
+    } catch (e) {
+      console.error('[scheduleForActivity] 写入任务失败:', e.message);
+    }
+  }
+
+  return { code: 0, data: { created }, message: `已生成 ${created} 个通知任务` };
+}
+
+/* ========== 为今日所有活动批量调度（安全兜底） ========== */
+async function scheduleAllToday() {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const res = await db.collection('activities')
+    .where({ activityDate: todayStr, status: _.neq('draft') })
+    .field({ _id: true })
+    .get();
+
+  let total = 0;
+  for (const act of res.data) {
+    if (String(act._id).startsWith('_system_') || String(act._id).startsWith('_limit_') || String(act._id).startsWith('_task_')) continue;
+    const r = await scheduleForActivity({ activityId: act._id });
+    total += (r.data && r.data.created) || 0;
+  }
+  return { code: 0, data: { total }, message: '全量调度完成' };
+}
+
+/* ========== 定时扫描：只查待发送任务 ========== */
 async function scanAndNotify() {
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // 预加载用户缓存
-  const userCache = await getUserCache();
+  // Step 1: 安全兜底 — 检查今日活动是否已调度，未调度的补上
+  await ensureTodayScheduled(todayStr);
 
-  // 加载全局提醒规则
-  let globalRules = [];
-  try {
-    const gRes = await db.collection('activities').doc('_system_global_rules').get();
-    if (gRes.data && gRes.data.value) globalRules = gRes.data.value || [];
-  } catch (e) { /* 忽略 */ }
-
-  // 获取今天有活动级提醒规则的活动（排除草稿）
-  const res = await db.collection('activities')
+  // Step 2: 查询所有到期未发送任务
+  const tasks = await db.collection('activities')
     .where({
-      activityDate: todayStr,
-      status: _.neq('draft'),
+      _type: 'scheduled_msg',
+      triggerAt: _.lte(now),
+      sent: false,
     })
+    .limit(50)
     .get();
 
   let sentCount = 0;
+  for (const task of tasks.data) {
+    try {
+      // 再次检查 sent 状态（防止并发重复发送）
+      const fresh = await db.collection('activities').doc(task._id).get().catch(() => null);
+      if (!fresh || !fresh.data || fresh.data.sent) continue;
 
-  for (const act of res.data) {
-    const rules = [...globalRules, ...(act.reminderRules || [])];
-    const arrivalTime = act.arrivalTime || '08:00';
-    const [aH, aM] = arrivalTime.split(':').map(Number);
-    const activityStartMinutes = (aH || 8) * 60 + (aM || 0);
-    const steps = act.steps || [];
+      await sendSubscribeMsg(task.openid, task.templateData, task.activityId);
+      await recordNotification(
+        task.activityId,
+        task.openid,
+        task.userName || '',
+        task.notifyMsg || '定时提醒'
+      );
 
-    for (const rule of rules) {
-      // 跳过已发送过的通知（用已发送集合去重）
-      const sentKey = `sent_${act._id}_${rule.id}`;
-
-      if (rule.timingIndex === 0) {
-        // 「活动开始前 N 分钟」通知指定人员/群组
-        const triggerMin = activityStartMinutes - (rule.minutes || 30);
-        if (Math.abs(nowMinutes - triggerMin) <= 5) {
-          await sendRuleNotifications(act, rule, sentKey);
-          sentCount++;
-        }
-      } else if (rule.timingIndex === 1) {
-        // 「活动结束后 N 分钟」通知指定人员/群组
-        // 简化：以当天最后环节结束时间为准，或直接用 activityDate 当天 18:00 作为"结束"
-        const endMinutes = 18 * 60; // 默认 18:00 为活动结束时间
-        const triggerMin = endMinutes + (rule.minutes || 30);
-        if (Math.abs(nowMinutes - triggerMin) <= 5) {
-          await sendRuleNotifications(act, rule, sentKey);
-          sentCount++;
-        }
-      } else if (rule.timingIndex === 2) {
-        // 「流程开始前 N 分钟」通知该环节负责人
-        for (const step of steps) {
-          if (!step.startTime || !step.ownerId) continue;
-          const [sH, sM] = step.startTime.split(':').map(Number);
-          const stepStartMin = (sH || 0) * 60 + (sM || 0);
-          const triggerMin = stepStartMin - (rule.minutes || 30);
-          const stepSentKey = `${sentKey}_step_${step._id}`;
-
-          if (Math.abs(nowMinutes - triggerMin) <= 5) {
-            await sendStepStartNotify(act, step, stepSentKey);
-            sentCount++;
-          }
-        }
-      }
+      // 标记为已发送
+      await db.collection('activities').doc(task._id).update({
+        data: { sent: true, sentAt: now }
+      });
+      sentCount++;
+    } catch (e) {
+      console.error('[scanAndNotify] 发送任务失败:', task._id, e.message);
     }
   }
+
+  // Step 3: 清理已过期但未发送的任务（超过触发时间 2 小时）
+  const expireTime = new Date(now.getTime() - 2 * 3600000);
+  try {
+    const expired = await db.collection('activities')
+      .where({ _type: 'scheduled_msg', triggerAt: _.lte(expireTime), sent: false })
+      .limit(20)
+      .get();
+    for (const t of expired.data) {
+      await db.collection('activities').doc(t._id).remove().catch(() => {});
+    }
+  } catch (e) { /* 忽略 */ }
 
   return { code: 0, data: { sentCount }, message: '扫描完成' };
 }
 
-/* ========== 发送订阅消息（检查用户通知开关） ========== */
-async function sendSubscribeMsg(openid, data, pageId) {
-  // 检查用户是否开启了通知
+/* ========== 确保今日任务已调度（仅今日第一次运行时执行） ========== */
+let _lastScheduleDate = '';
+async function ensureTodayScheduled(todayStr) {
+  if (_lastScheduleDate === todayStr) return; // 今日已调度过
+  _lastScheduleDate = todayStr;
+
+  // 检查今日是否已有任务
+  const existing = await db.collection('activities')
+    .where({ _type: 'scheduled_msg', triggerAt: _.gte(new Date(todayStr + 'T00:00:00')) })
+    .limit(1)
+    .get();
+
+  if (existing.data.length > 0) return; // 已有任务，跳过
+
+  // 没有任务 → 补调度
+  console.log('[ensureTodayScheduled] 今日任务缺失，补调度:', todayStr);
+  await scheduleAllToday();
+}
+
+/* ========== 删除活动的通知任务 ========== */
+async function deleteActivityTasks(activityId) {
+  try {
+    const tasks = await db.collection('activities')
+      .where({ _type: 'scheduled_msg', activityId, sent: false })
+      .get();
+    for (const t of tasks.data) {
+      await db.collection('activities').doc(t._id).remove().catch(() => {});
+    }
+  } catch (e) { /* 忽略 */ }
+}
+
+/* ========== 生成单个任务文档 ========== */
+function createTask(activityId, user, templateData, triggerAt) {
+  return {
+    _type: 'scheduled_msg',
+    activityId,
+    openid: user.openid,
+    userName: user.name || '',
+    templateData,
+    triggerAt,
+    sent: false,
+    notifyMsg: templateData.thing12 ? templateData.thing12.value : '',
+    createdAt: new Date(),
+  };
+}
+
+/* ========== 测试通知（仅王万全使用） ========== */
+async function testSend(event, openid) {
+  // 查找王万全的 openid
+  const userRes = await db.collection('users').where({ name: '王万全' }).get();
+  if (!userRes.data || !userRes.data[0]) {
+    return { code: 404, message: '未找到用户王万全' };
+  }
+  const targetOpenid = userRes.data[0].openid;
+  try {
+    await cloud.openapi.subscribeMessage.send({
+      touser: targetOpenid,
+      templateId: TMPL_ID,
+      page: 'pages/activity-list/activity-list',
+      data: {
+        thing24: { value: '知嘛健康零号店' },
+        thing12: { value: '通知系统测试' },
+        thing10: { value: '零号店' },
+        name3: { value: '王万全' },
+        time27: { value: new Date().toTimeString().slice(0, 5) },
+      },
+      miniprogramState: 'trial',
+    });
+    return { code: 0, message: '测试通知已发送给王万全' };
+  } catch (e) {
+    console.error('[testSend] 发送失败:', e.errMsg || e.message);
+    return { code: -1, message: '发送失败: ' + (e.errMsg || e.message) };
+  }
+}
+
+/* ========== 发送订阅消息（检查用户通知开关，支持多模板） ========== */
+// templateId: 不传则默认用定时提醒模板
+async function sendSubscribeMsg(openid, data, pageId, templateId) {
+  const tmplId = templateId || TMPL_ID;
   try {
     const userRes = await db.collection('users').where({ openid }).get();
-    if (userRes.data && userRes.data.length > 0 && userRes.data[0].notifyEnabled === false) {
-      console.log('[sendSubscribeMsg] 用户已关闭通知，跳过');
-      return;
+    if (userRes.data && userRes.data.length > 0) {
+      const u = userRes.data[0];
+      if (u.notifyEnabled === false) { console.log('[sendSubscribeMsg] 用户已关闭通知，跳过'); return; }
+      if (u.status === 'inactive')    { console.log('[sendSubscribeMsg] 用户已离职，跳过'); return; }
     }
   } catch (e) { /* 查询失败不影响发送 */ }
 
   try {
     await cloud.openapi.subscribeMessage.send({
       touser: openid,
-      templateId: TMPL_ID,
+      templateId: tmplId,
       page: pageId ? `pages/activity-detail/activity-detail?id=${pageId}` : '',
       data,
-      miniprogramState: 'developer',
+      miniprogramState: 'trial',
     });
   } catch (e) {
     console.error('[sendSubscribeMsg] 发送失败:', e.errMsg || e.message);
   }
 }
 
-/* ========== 按规则通知指定人员/群组 ========== */
-async function sendRuleNotifications(act, rule, sentKey) {
-  const existing = await db.collection('_sent_notifications').doc(sentKey).get().catch(() => null);
-  if (existing && existing.data) return;
+/* ========== 查找部门主管（交集逻辑） ========== */
+/**
+ * 部门主管 = 同时满足：
+ * ① 属于该部门（users.department === departmentName）
+ * ② 属于「部门主管」权限组（users.permissionGroupId 指向该组）
+ */
+async function findDepartmentSupervisors(departmentName) {
+  // 查找该部门的所有用户
+  const deptUsers = await db.collection('users')
+    .where({ department: departmentName })
+    .field({ _id: true, openid: true, name: true, permissionGroupId: true, permissions: true, role: true })
+    .get();
 
-  const targets = rule.targets || [];
-  const actUnit = act.activityUnit || '';
-  const userCache = await getUserCache();
+  if (!deptUsers.data || deptUsers.data.length === 0) return [];
 
-  for (const t of targets) {
-    const user = userCache[t.name];
-    if (!user || !user.openid) continue;
-    const label = rule.timingIndex === 0 ? `${rule.minutes || 30}分钟后开始` : '活动已结束';
-    await sendSubscribeMsg(user.openid, {
-      thing1: { value: actUnit },
-      thing2: { value: label },
-      thing3: { value: act.venue || '' },
-      time4: { value: act.arrivalTime || act.activityDate || '' },
-      thing5: { value: '请及时查看活动详情' },
-    }, act._id);
-    await recordNotification(act._id, user._id, t.name,
-      `活动「${actUnit}」${rule.timingIndex === 0 ? '即将开始' : '已结束'}`);
-  }
-  await db.collection('_sent_notifications').doc(sentKey).set({ data: { sentAt: new Date() } }).catch(() => {});
-}
+  // 找到「部门主管」权限组
+  const supervisorGroup = await db.collection('permission_groups')
+    .where({ name: '部门主管' })
+    .limit(1)
+    .get();
 
-/* ========== 环节开始前通知负责人 ========== */
-async function sendStepStartNotify(act, step, sentKey) {
-  const existing = await db.collection('_sent_notifications').doc(sentKey).get().catch(() => null);
-  if (existing && existing.data) return;
+  const supervisorGroupId = supervisorGroup.data && supervisorGroup.data[0] ? supervisorGroup.data[0]._id : null;
 
-  const userCache = await getUserCache();
-  const user = userCache[step.ownerId];
-  if (!user || !user.openid) return;
+  // 主管判断：属于部门主管权限组 || 拥有管理类权限 || admin
+  const mgmtPerms = ['manage_users', 'manage_departments', 'assign_process_owner', 'send_notification'];
+  const supervisors = deptUsers.data.filter(u => {
+    // 通过权限组ID匹配
+    if (supervisorGroupId && u.permissionGroupId === supervisorGroupId) return true;
+    // 通过权限列表匹配
+    const perms = u.permissions || [];
+    if (perms.some(p => mgmtPerms.includes(p))) return true;
+    if (u.role === 'admin') return true;
+    return false;
+  });
 
-  await sendSubscribeMsg(user.openid, {
-    thing1: { value: step.stepName || '' },
-    thing2: { value: '环节即将开始' },
-    thing3: { value: act.activityUnit || '' },
-    time4: { value: step.startTime || '' },
-    thing5: { value: '请及时准备' },
-  }, act._id);
-
-  await db.collection('_sent_notifications').doc(sentKey).set({ data: { sentAt: new Date() } }).catch(() => {});
-  await recordNotification(act._id, step.ownerId, user.name, `环节「${step.stepName}」即将开始`);
+  return supervisors.map(s => ({ _id: s._id, openid: s.openid, name: s.name }));
 }
 
 /* ========== 记录通知日志 ========== */

@@ -31,11 +31,14 @@ Page({
     timeGridWidth: (HOUR_END - DEFAULT_HOUR_START) * PX_PER_HOUR,
     hourCellWidth: PX_PER_HOUR,
     gridRowHeight: 80,
+    venueOccupancy: [],
   },
 
   onLoad() { this._firstShow = true; this.goToday(); },
   onShow() {
     if (this._firstShow) { this._firstShow = false; return; }
+    const app = getApp();
+    if (!app.globalData.loginReady) return;
     const user = getCurrentUser();
     if (!user) {
       wx.reLaunch({ url: '/pages/login/login' });
@@ -91,13 +94,17 @@ Page({
     this.setData({ loading: true });
     try {
       const d = this.data.currentDate;
-      const res = await getGanttData(d, d, this.data.includePending);
+      const [res, occRes] = await Promise.all([
+        getGanttData(d, d, this.data.includePending),
+        wx.cloud.callFunction({ name: 'activities', data: { action: 'getVenueOccupancy', activityDate: d } }),
+      ]);
       const list = res.list || res || [];
 
       const hourStart = this._calcDynamicHourStart(list);
       const hourEnd = HOUR_END;
 
       const activities = list.map(a => this._buildGanttItem(a, hourStart, hourEnd));
+      const venueOccupancy = this._buildVenueOccupancy(occRes, hourStart);
       this.setData({
         hourStart,
         hourEnd,
@@ -105,12 +112,28 @@ Page({
         timeGridWidth: (hourEnd - hourStart) * PX_PER_HOUR,
         hourCellWidth: PX_PER_HOUR,
         activities,
+        venueOccupancy,
         loading: false,
       });
     } catch (e) {
       console.error('[gantt] loadGantt error', e);
       this.setData({ loading: false });
     }
+  },
+
+  _buildVenueOccupancy(occRes, hourStart) {
+    const raw = (occRes && occRes.result && occRes.result.data) || {};
+    const venues = [];
+    const names = Object.keys(raw).sort((a, b) => a.localeCompare(b, 'zh'));
+    for (const name of names) {
+      const slots = (raw[name] || []).map(s => ({
+        ...s,
+        stepName: s.stepName || '',
+        activityUnit: s.activityUnit || '',
+      }));
+      if (slots.length > 0) venues.push({ name, slots });
+    }
+    return venues;
   },
 
   _assignLanes(steps, hourStart, hourEnd) {
@@ -183,7 +206,7 @@ Page({
       const isDone = !!s.completedAt;
       return {
         ...s,
-        stepName: s.stepName || `环节${s.idx + 1}`,
+        stepName: s.venue ? `${s.stepName || `环节${s.idx + 1}`} (${s.venue})` : (s.stepName || `环节${s.idx + 1}`),
         barLeft: (s.sH - hourStart) * PX_PER_HOUR,
         barWidth: Math.max((s.eH - s.sH) * PX_PER_HOUR, 40),
         barTop: 4 + (s.lane || 0) * 56,
