@@ -3,13 +3,12 @@ const { createActivity, updateActivity, getMyDraft, getMonthlyCounts } = require
 const { getUsers } = require('../../services/admin');
 const { getCurrentUser } = require('../../utils/auth');
 const { requestSubscription } = require('../../services/notification');
-
-const SUBSCRIBE_TMPL_IDS = ['XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70'];
+const { VENUE_LIST, SUBSCRIBE_TMPL_IDS, matchStepVenue } = require('../../utils/constants');
 
 // 默认表单结构
 const DEFAULT_FORM = () => ({
   activityDate: '',
-  arrivalTime: '09:00',  // 到店时间 "HH:MM"
+  arrivalTime: '09:00',
   activityUnit: '',
   venue: '',
   peopleCount: '',
@@ -34,143 +33,34 @@ const DEFAULT_FORM = () => ({
     filming: false,
   },
   invoiceNeeds: '',
-  sachetAccount: '',  // 'clinic' | 'shop'
+  sachetAccount: '',
 });
 
 let _stepTempId = 0;
 
-// 预设地点列表
-const VENUE_LIST = [
-  '零号店1-3层', '零号店正门', '吧台后方书吧', '吧台沙发区', '吧台前台',
-  '战略报告厅', '大包间', '小包间', '西餐厅',
-  '散台小吃用餐区', '散台圆桌', '二层', '三层',
-  '三层LED区', '四层DIY区', '五层多功能厅',
-  '五层会议室一', '五层会议室二', '五层圆桌会议室',
-  '员工餐厅', '元宇宙数字化工厂', '其他（手动输入）',
-];
-
-// 地点别名映射：粘贴文本中的常用说法 → VENUE_LIST 中的正式名称
-const VENUE_ALIASES = {
-  '食堂':       '员工餐厅',
-  '园区餐厅':   '员工餐厅',
-  '饭堂':       '员工餐厅',
-  '餐厅':       '员工餐厅',
-  '会议室二':   '五层会议室二',
-  '会议室一':   '五层会议室一',
-  '会议室':     '五层会议室二',   // 默认匹配会议室二
-  '圆桌会议室': '五层圆桌会议室',
-  'LED区':        '三层LED区',
-  '开放式报告厅': '三层LED区',
-  '售药机':       '零号店正门',
-  'DIY区':        '四层DIY区',
-  '四层':         '四层DIY区',
-  '多功能厅':   '五层多功能厅',
-  '报告厅':     '战略报告厅',
-  '书吧':       '吧台后方书吧',
-  '沙发区':     '吧台沙发区',
-  '前台':       '吧台前台',
-  '包间':       '大包间',         // 默认大包间
-  '大包':       '大包间',
-  '小包':       '小包间',
-  '西餐':       '西餐厅',
-  '数字化':     '元宇宙数字化工厂',
-  '元宇宙':     '元宇宙数字化工厂',
-};
-
-/**
- * 根据环节名称模糊匹配预设地点
- * 返回 { venue, venueIndex }，未匹配则返回 venue:'' venueIndex:0
- */
-function matchStepVenue(stepName) {
-  if (!stepName) return { venue: '', venueIndex: 0 };
-
-  const text = stepName.replace(/\s+/g, '');  // 去空格
-  const venues = VENUE_LIST.slice(0, -1);      // 排除"其他（手动输入）"
-
-  // 1) 别名精确命中
-  for (const [alias, target] of Object.entries(VENUE_ALIASES)) {
-    if (text.includes(alias)) {
-      const idx = venues.indexOf(target);
-      if (idx >= 0) return { venue: target, venueIndex: idx };
-    }
-  }
-
-  // 2) 直接子串匹配（环节名包含场地名 或 场地名包含环节关键词）
-  let best = { venue: '', venueIndex: 0, score: 0 };
-  for (let i = 0; i < venues.length; i++) {
-    const v = venues[i];
-    const vClean = v.replace(/\s+/g, '');
-    let score = 0;
-
-    // 完全包含
-    if (text.includes(vClean)) {
-      score = vClean.length * 10;  // 越长越精确
-    } else if (vClean.includes(text)) {
-      score = text.length * 8;
-    } else {
-      // 字符重叠度：逐2字词组匹配
-      const bigrams = new Set();
-      for (let j = 0; j < text.length - 1; j++) bigrams.add(text.slice(j, j + 2));
-      for (let j = 0; j < vClean.length - 1; j++) {
-        if (bigrams.has(vClean.slice(j, j + 2))) score += 2;
-      }
-    }
-
-    // 优先匹配楼层+名称组合
-    if (/[一二三四五六七]层/.test(text) && /[一二三四五六七]层/.test(vClean)) score += 5;
-
-    if (score > best.score) {
-      best = { venue: v, venueIndex: i, score };
-    }
-  }
-
-  // 阈值：至少 4 分才算匹配（2 个 bigram 重叠）
-  if (best.score >= 4 && best.venue) {
-    return { venue: best.venue, venueIndex: best.venueIndex };
-  }
-
-  return { venue: '', venueIndex: 0 };
-}
-
 Page({
+  behaviors: [
+    require('../../behaviors/formBase'),
+    require('../../behaviors/stepEditor'),
+  ],
   data: {
     form: DEFAULT_FORM(),
-    userList: [],
-    isAdmin: false,
-    deptUserRange: [[], []],
-    venueOptions: VENUE_LIST,
-    showVenueInput: false,  // 是否显示手动输入地点框
+    showVenueInput: false,
     customVenue: '',
     saving: false,
     submitting: false,
-    draftId: null,       // 已存在的草稿 ID
-    hasDraft: false,     // 是否有草稿
+    draftId: null,
+    hasDraft: false,
     showRegister: false,
     // 粘贴识别
     pasteText: '',
     parsing: false,
-    // 自定义时间选择
-    showTimePicker: false,
-    timePickerValue: [8, 0],
-    timeHours: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')),
-    timeMinutes: ['00','05','10','15','20','25','30','35','40','45','50','55'],
-    editingTimeIndex: -1,
-    editingTimeField: '',  // 'startTime' | 'endTime'
     // 活动日历
     calYear: 0,
     calMonth: 0,
     calWeeks: [],
-    calExpanded: false,        // 日历默认折叠
-    calAutoExpand: false,      // 记住展开状态
-  },
-
-  // 计算属性：香囊是否显示
-  _shouldShowSachet() {
-    const f = this.data.form;
-    const bizText = (f.businessType || '') + (f.venueUsage || '');
-    const stepsText = (f.steps || []).map(s => (s.stepName || '')).join(' ');
-    const combined = bizText + ' ' + stepsText;
-    return combined.indexOf('香囊') !== -1;
+    calExpanded: false,
+    calAutoExpand: false,
   },
 
   async onLoad() {
@@ -229,16 +119,6 @@ Page({
     this.setData({ calAutoExpand: checked });
     wx.setStorageSync('cal_auto_expand', checked);
     if (!checked) this.setData({ calExpanded: false });
-  },
-
-  // 通用字段输入
-  onInput(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ [`form.${field}`]: e.detail.value });
-    // 更新香囊显示状态
-    if (field === 'businessType' || field === 'venueUsage') {
-      this.setData({ showSachet: this._shouldShowSachet() });
-    }
   },
 
   // 粘贴信息输入
@@ -560,132 +440,9 @@ Page({
     }
   },
 
-  // 日期选择
-  onDateChange(e) {
-    this.setData({ 'form.activityDate': e.detail.value });
-  },
-
-  // 到店时间选择
-  onArrivalTimeChange(e) {
-    this.setData({ 'form.arrivalTime': e.detail.value });
-  },
-
-  // 客户信息字段
-  onClientInput(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ [`form.clientInfo.${field}`]: e.detail.value });
-  },
-
-  // 场地需求切换
-  toggleNeed(e) {
-    const field = e.currentTarget.dataset.field;
-    const cur = this.data.form.venueNeeds[field];
-    this.setData({ [`form.venueNeeds.${field}`]: !cur });
-  },
-
-  // 香囊账户选择
-  setSachet(e) {
-    this.setData({ 'form.sachetAccount': e.currentTarget.dataset.val });
-  },
-
-  // ===== 流程环节 =====
-  addStep() {
-    const steps = [...this.data.form.steps];
-    steps.push({
-      tempId: ++_stepTempId,
-      stepName: '',
-      startTime: '',
-      endTime: '',
-      venue: '',
-      venueIndex: 0,  // 默认"零号店1-3层"
-      ownerId: '',
-      ownerName: '',
-      ownerIndex: -1,
-      ownerDeptValue: [0, this._pendingIdx || 0],  // 默认"待分配"
-    });
-    this.setData({ 'form.steps': steps });
-  },
-
-  removeStep(e) {
-    const idx = e.currentTarget.dataset.index;
-    const steps = [...this.data.form.steps];
-    steps.splice(idx, 1);
-    this.setData({ 'form.steps': steps });
-    this.setData({ showSachet: this._shouldShowSachet() });
-  },
-
-  onStepInput(e) {
-    const { index, field } = e.currentTarget.dataset;
-    this.setData({ [`form.steps[${index}].${field}`]: e.detail.value });
-    // stepName 变更时更新香囊显示状态
-    if (field === 'stepName') {
-      this.setData({ showSachet: this._shouldShowSachet() });
-    }
-  },
-
-  onStepTimeChange(e) {
-    const { index, field } = e.currentTarget.dataset;
-    this.setData({ [`form.steps[${index}].${field}`]: e.detail.value });
-  },
-
-  // 双列选择器确认（管理员：部门+人员）
-  onStepOwnerChange(e) {
-    const index = e.currentTarget.dataset.index;
-    if (!this.data.isAdmin) {
-      // 非管理员：单列选择器，只有自己
-      const owner = this.data.userList[e.detail.value];
-      if (!owner) return;
-      this.setData({
-        [`form.steps[${index}].ownerId`]: owner._id,
-        [`form.steps[${index}].ownerName`]: owner.name,
-      });
-      return;
-    }
-    // 管理员：双列选择器 [deptIdx, userIdx]
-    const val = e.detail.value;
-    const deptName = this._deptNames[val[0]];
-    const deptUsers = this._deptUserMap[deptName] || [];
-    // 判断是否选择了「待分配」
-    const isPending = val[1] >= deptUsers.length;
-    if (isPending) {
-      this.setData({
-        [`form.steps[${index}].ownerDeptValue`]: [val[0], -1],
-        [`form.steps[${index}].ownerDeptName`]: deptName,  // 保存部门名，用于通知主管
-        [`form.steps[${index}].ownerId`]: '__pending__',
-        [`form.steps[${index}].ownerName`]: '待分配',
-      });
-      return;
-    }
-    const owner = deptUsers[val[1]];
-    if (!owner) return;
-    this.setData({
-      [`form.steps[${index}].ownerDeptValue`]: val,
-      [`form.steps[${index}].ownerId`]: owner._id,
-      [`form.steps[${index}].ownerName`]: owner.name,
-    });
-  },
-
-  // 部门列切换时刷新人员列，并默认选中"待分配"
-  onStepOwnerColumnChange(e) {
-    const { column, value } = e.detail;
-    if (column !== 0) return;
-    const stepIdx = e.currentTarget.dataset.index;
-    const deptName = this._deptNames[value];
-    const deptUsers = this._deptUserMap[deptName] || [];
-    const names = deptUsers.map(u => u.name);
-    names.push('待分配');  // 末尾追加待分配选项
-    const range = this.data.deptUserRange.slice();
-    range[1] = names;
-    // 切换部门时，人员列默认选"待分配"（最后一个）
-    if (stepIdx !== undefined) {
-      this.setData({
-        deptUserRange: range,
-        [`form.steps[${stepIdx}].ownerDeptValue`]: [value, names.length - 1],
-      });
-    } else {
-      this.setData({ deptUserRange: range });
-    }
-  },
+  // ===== 流程环节（override behavior） =====
+  // 使用模块级递增计数器生成 tempId
+  _getNextTempId() { return ++_stepTempId; },
 
   // 环节地点变更
   onStepVenueChange(e) {
@@ -723,96 +480,6 @@ Page({
     });
   },
   cancelCustomVenue() { this.setData({ showVenueInput: false, customVenue: '' }); },
-
-  // 构建部门-人员双列选择器
-  _buildDeptUserPicker(userList) {
-    const deptMap = {};
-    userList.forEach(u => {
-      const dept = u.department || '未分组';
-      if (!deptMap[dept]) deptMap[dept] = [];
-      deptMap[dept].push(u);
-    });
-    const deptNames = Object.keys(deptMap);
-    // 店长不常用，显式排到末尾，其余按拼音排序
-    const storeIdx = deptNames.indexOf('店长');
-    if (storeIdx !== -1) deptNames.splice(storeIdx, 1);
-    deptNames.sort((a, b) => a.localeCompare(b, 'zh'));
-    if (storeIdx !== -1) deptNames.push('店长');
-    // 当前用户所在部门排到最前
-    const user = getCurrentUser();
-    if (user && user.department) {
-      const myDept = user.department;
-      const myIdx = deptNames.indexOf(myDept);
-      if (myIdx > 0) {
-        deptNames.splice(myIdx, 1);
-        deptNames.unshift(myDept);
-      }
-    }
-    this._deptNames = deptNames;
-    this._deptUserMap = deptMap;
-    const firstDeptUsers = deptNames.length > 0 ? (deptMap[deptNames[0]] || []) : [];
-    // 每个部门的人员列表末尾追加「待分配」选项
-    const firstNames = firstDeptUsers.map(u => u.name);
-    firstNames.push('待分配');
-    this._pendingIdx = firstNames.length - 1;  // "待分配"的索引
-    this.setData({
-      deptUserRange: [deptNames, firstNames],
-    });
-  },
-
-  // 查找用户在部门选择器中的 [deptIdx, userIdx]
-  _findOwnerDeptValue(user) {
-    if (!user || !this._deptNames) return [0, 0];
-    const dept = user.department || '未分组';
-    const deptIdx = this._deptNames.indexOf(dept);
-    if (deptIdx < 0) return [0, 0];
-    const deptUsers = this._deptUserMap[dept] || [];
-    const userIdx = deptUsers.findIndex(u => u._id === user._id);
-    return [deptIdx, userIdx >= 0 ? userIdx : 0];
-  },
-
-  // ===== 自定义时间选择 =====
-  openTimePicker(e) {
-    const { index, field } = e.currentTarget.dataset;
-    const step = this.data.form.steps[index];
-    if (!step) return;
-    // 结束时间默认对齐开始时间
-    let timeStr = step[field];
-    if (!timeStr && field === 'endTime' && step.startTime) {
-      timeStr = step.startTime;
-    }
-    if (!timeStr) timeStr = '08:00';
-    const parts = timeStr.split(':');
-    const h = parseInt(parts[0]) || 8;
-    const m = parseInt(parts[1]) || 0;
-    const minuteIndex = this.data.timeMinutes.indexOf(String(m).padStart(2, '0'));
-    this.setData({
-      showTimePicker: true,
-      editingTimeIndex: Number(index),
-      editingTimeField: field,
-      timePickerValue: [h, minuteIndex >= 0 ? minuteIndex : 0],
-    });
-  },
-
-  onTimePickerChange(e) {
-    this.setData({ timePickerValue: e.detail.value });
-  },
-
-  confirmTimePicker() {
-    const { editingTimeIndex, editingTimeField, timePickerValue, timeHours, timeMinutes } = this.data;
-    if (editingTimeIndex < 0 || !editingTimeField) return;
-    const h = timeHours[timePickerValue[0]];
-    const m = timeMinutes[timePickerValue[1]];
-    const timeStr = `${h}:${m}`;
-    this.setData({
-      [`form.steps[${editingTimeIndex}].${editingTimeField}`]: timeStr,
-      showTimePicker: false,
-    });
-  },
-
-  closeTimePicker() {
-    this.setData({ showTimePicker: false });
-  },
 
   // ===== 校验 =====
   _validate() {
