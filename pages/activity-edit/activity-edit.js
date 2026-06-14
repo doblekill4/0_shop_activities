@@ -173,6 +173,7 @@ Page({
       stepName:    s.stepName || '',
       startTime:   s.startTime || '',
       endTime:     s.endTime || '',
+      venue:       s.venue || '',
       ownerId:     s.ownerId || '',
       ownerName:   s.ownerName || '',
       completedAt: s.completedAt || null,
