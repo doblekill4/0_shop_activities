@@ -160,7 +160,12 @@ async function hookStepCompleted(event, openid) {
       nextIdx++; // 跳过已完成的环节
     }
     const nextStep = steps[nextIdx];
-    if (nextStep && nextStep.ownerId) {
+    console.log('[hookStepCompleted] nextIdx:', nextIdx, 'nextStep:', nextStep ? nextStep.stepName : '无', 'ownerId:', nextStep ? nextStep.ownerId : '');
+    if (!nextStep) {
+      console.log('[hookStepCompleted] 无下一环节（已是最后一个），跳过通知');
+    } else if (!nextStep.ownerId || nextStep.ownerId === '__pending__') {
+      console.log('[hookStepCompleted] 下一环节「' + nextStep.stepName + '」无负责人或待分配，跳过通知');
+    } else {
       const userRes = await db.collection('users').doc(nextStep.ownerId).get().catch(() => null);
       if (userRes && userRes.data && userRes.data.openid) {
         await sendSubscribeMsg(userRes.data.openid, {
