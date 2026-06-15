@@ -697,9 +697,16 @@ Page({
         }
         wx.showToast({ title: '活动已提交', icon: 'success' });
         setTimeout(() => {
-          if (SUBSCRIBE_TMPL_IDS[0] && !SUBSCRIBE_TMPL_IDS[0].includes('PLACEHOLDER')) {
-            requestSubscription(SUBSCRIBE_TMPL_IDS).catch(() => {});
-          }
+          const allTmpls = [
+            'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+            'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
+            'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
+          ];
+          requestSubscription(allTmpls).catch(() => {});
+          wx.cloud.callFunction({
+            name: 'auth',
+            data: { action: 'setNotifyEnabled', enabled: true },
+          }).catch(() => {});
         }, 1500);
         setTimeout(() => {
           wx.redirectTo({ url: `/pages/activity-detail/activity-detail?id=${activityId}` });

@@ -410,38 +410,28 @@ Page({
     wx.navigateTo({ url: '/pages/activity-create/activity-create' });
   },
 
-  // 每次进入首页询问订阅授权（每天最多弹一次）
+  // 每次进入首页询问订阅授权（微信原生去重，已同意"一直允许"不会反复弹）
   _requestNotifyAuth() {
-    const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`;
-    const lastAsk = wx.getStorageSync('notify_auth_last_ask');
-    if (lastAsk === today) return; // 今天已问过
-
     const tmplIds = [
       'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
       'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
       'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
     ];
 
-    // 延迟 800ms 弹窗，避免和页面渲染动画冲突
     setTimeout(() => {
       wx.requestSubscribeMessage({
         tmplIds,
         success: (res) => {
           const accepted = tmplIds.filter(id => res[id] === 'accept');
           if (accepted.length > 0) {
-            // 更新数据库通知开关
             wx.cloud.callFunction({
               name: 'auth',
               data: { action: 'setNotifyEnabled', enabled: true },
             }).catch(() => {});
           }
-          wx.setStorageSync('notify_auth_last_ask', today);
         },
-        fail: () => {
-          wx.setStorageSync('notify_auth_last_ask', today);
-        },
+        fail: () => {},
         complete: () => {
-          // 首次拒绝后提示
           if (!wx.getStorageSync('notify_auth_tip_shown')) {
             wx.setStorageSync('notify_auth_tip_shown', true);
             setTimeout(() => {
@@ -450,7 +440,7 @@ Page({
           }
         },
       });
-    }, 800);
+    }, 300);
   },
 
   onRegisterSuccess(e) {
