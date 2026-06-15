@@ -174,7 +174,7 @@ async function hookStepCompleted(event, openid) {
           thing10: { value: actRes.data.venue || '' },
           name3: { value: nextStep.ownerName || userRes.data.name || '' },
           time27: { value: nextStep.startTime || '' },
-        }, actRes.data._id);
+        }, actRes.data._id, undefined, true);  // skipAuthCheck: 与 testSend 一致，绕过 notifyEnabled 检查
         await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
           `上一环节「${steps[stepIndex].stepName}」已完成→「${nextStep.stepName}」`);
       }
@@ -479,16 +479,20 @@ async function testSend(event, openid) {
 
 /* ========== 发送订阅消息（检查用户通知开关，支持多模板） ========== */
 // templateId: 不传则默认用定时提醒模板
-async function sendSubscribeMsg(openid, data, pageId, templateId) {
+// skipAuthCheck: true 跳过 notifyEnabled 检查（用于 hookStepCompleted 等实时通知场景）
+//   testSend 也是跳过检查直发，因为 43101 与用户开关无关，纯属订阅授权问题
+async function sendSubscribeMsg(openid, data, pageId, templateId, skipAuthCheck) {
   const tmplId = templateId || TMPL_ID;
-  try {
-    const userRes = await db.collection('users').where({ openid }).get();
-    if (userRes.data && userRes.data.length > 0) {
-      const u = userRes.data[0];
-      if (u.notifyEnabled === false) { console.log('[sendSubscribeMsg] 用户已关闭通知，跳过'); return; }
-      if (u.status === 'inactive')    { console.log('[sendSubscribeMsg] 用户已离职，跳过'); return; }
-    }
-  } catch (e) { /* 查询失败不影响发送 */ }
+  if (!skipAuthCheck) {
+    try {
+      const userRes = await db.collection('users').where({ openid }).get();
+      if (userRes.data && userRes.data.length > 0) {
+        const u = userRes.data[0];
+        if (u.notifyEnabled === false) { console.log('[sendSubscribeMsg] 用户已关闭通知，跳过'); return; }
+        if (u.status === 'inactive')    { console.log('[sendSubscribeMsg] 用户已离职，跳过'); return; }
+      }
+    } catch (e) { /* 查询失败不影响发送 */ }
+  }
 
   try {
     await cloud.openapi.subscribeMessage.send({
