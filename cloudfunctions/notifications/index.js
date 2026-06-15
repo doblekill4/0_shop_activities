@@ -493,8 +493,9 @@ async function sendSubscribeMsg(openid, data, pageId, templateId) {
       data,
       miniprogramState: 'trial',
     });
+    console.log('[sendSubscribeMsg] 发送成功:', tmplId, openid.slice(-6));
   } catch (e) {
-    console.error('[sendSubscribeMsg] 发送失败:', e.errMsg || e.message);
+    console.error('[sendSubscribeMsg] 发送失败:', e.errCode, e.errMsg || e.message, 'tmplId:', tmplId);
   }
 }
 

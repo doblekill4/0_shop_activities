@@ -60,7 +60,7 @@ Page({
 
   onShow() {
     const app = getApp();
-    if (!app.globalData.loginReady) return; // 登录检测未完成，等 onLoad 的 _waitForLogin
+    if (!app.globalData.loginReady) return;
     if (!app.globalData.isLoggedIn && !wx.getStorageSync('userInfo')) {
       wx.reLaunch({ url: '/pages/login/login' });
       return;
@@ -83,6 +83,8 @@ Page({
       this._needRefresh = false;
       this.loadActivities(true);
     }
+    // 每次进入首页询问订阅授权（每天最多弹一次）
+    this._requestNotifyAuth();
   },
 
   onHide() {
@@ -406,6 +408,49 @@ Page({
 
   goCreate() {
     wx.navigateTo({ url: '/pages/activity-create/activity-create' });
+  },
+
+  // 每次进入首页询问订阅授权（每天最多弹一次）
+  _requestNotifyAuth() {
+    const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`;
+    const lastAsk = wx.getStorageSync('notify_auth_last_ask');
+    if (lastAsk === today) return; // 今天已问过
+
+    const tmplIds = [
+      'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+      'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
+      'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
+    ];
+
+    // 延迟 800ms 弹窗，避免和页面渲染动画冲突
+    setTimeout(() => {
+      wx.requestSubscribeMessage({
+        tmplIds,
+        success: (res) => {
+          const accepted = tmplIds.filter(id => res[id] === 'accept');
+          if (accepted.length > 0) {
+            // 更新数据库通知开关
+            wx.cloud.callFunction({
+              name: 'auth',
+              data: { action: 'setNotifyEnabled', enabled: true },
+            }).catch(() => {});
+          }
+          wx.setStorageSync('notify_auth_last_ask', today);
+        },
+        fail: () => {
+          wx.setStorageSync('notify_auth_last_ask', today);
+        },
+        complete: () => {
+          // 首次拒绝后提示
+          if (!wx.getStorageSync('notify_auth_tip_shown')) {
+            wx.setStorageSync('notify_auth_tip_shown', true);
+            setTimeout(() => {
+              wx.showToast({ title: '可在"我的"页面重新开启通知', icon: 'none', duration: 2500 });
+            }, 1000);
+          }
+        },
+      });
+    }, 800);
   },
 
   onRegisterSuccess(e) {
