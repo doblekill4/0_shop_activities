@@ -554,12 +554,12 @@ function diffObject(oldObj, newObj) {
           changes.push({ field: `环节[${i + 1}]`, old: `「${oldStep.stepName || ''}」`, new: '已删除' });
         } else if (oldStep && newStep) {
           // 逐字段比较
-          const stepFields = ['stepName', 'startTime', 'endTime', 'ownerName'];
+          const stepFields = ['stepName', 'startTime', 'endTime', 'venue', 'ownerName'];
           stepFields.forEach(f => {
             const ov = oldStep[f] || '', nv = newStep[f] || '';
             if (ov !== nv) {
-              const label = { stepName: '名称', startTime: '开始时间', endTime: '结束时间', ownerName: '负责人' }[f] || f;
-              changes.push({ field: `环节「${newStep.stepName || oldStep.stepName || (i + 1)}」${label}`, old: ov || '—', new: nv || '—' });
+              const label = { stepName: '名称', startTime: '开始时间', endTime: '结束时间', venue: '地点', ownerName: '负责人' }[f] || f;
+              changes.push({ field: `环节「${newStep.stepName || oldStep.stepName || (i + 1)}」${label}`, old: ov || '未设置', new: nv || '未设置' });
             }
           });
         }
@@ -580,7 +580,7 @@ function diffObject(oldObj, newObj) {
         const ovStr = typeof ov === 'boolean' ? (ov ? '是' : '否') : (ov || '');
         const nvStr = typeof nv === 'boolean' ? (nv ? '是' : '否') : (nv || '');
         if (ovStr !== nvStr) {
-          changes.push({ field: `${labels[f] || f}`, old: ovStr || '—', new: nvStr || '—' });
+          changes.push({ field: `${labels[f] || f}`, old: ovStr || '未设置', new: nvStr || '未设置' });
         }
       });
       return;
