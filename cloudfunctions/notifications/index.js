@@ -9,6 +9,10 @@ const TMPL_ID = 'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70';            // 定
 const TMPL_CLEAN = 'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg';         // 清洁任务提醒
 const TMPL_STATUS = 'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA';        // 活动状态变更通知
 
+// 微信订阅消息字段长度限制
+// thing*: 20字, name*: 10字, phrase*: 5字, time*: 无限制
+function fit(v, max) { return (v || '').length > max ? (v || '').slice(0, max - 1) + '…' : (v || ''); }
+
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
   const openid = wxContext.OPENID;
@@ -73,10 +77,10 @@ async function sendChangeNotification(event, openid) {
       const statusLabel = { draft: '草稿', pending: '待确认', confirmed: '已确认', settled: '已结算' };
       await sendSubscribeMsg(n.openid, {
         time4: { value: actRes.data.arrivalTime || actRes.data.activityDate || '' },
-        thing1: { value: n.activityUnit },
-        thing2: { value: n.message || '活动信息已更新，请查看' },
+        thing1: { value: fit(n.activityUnit, 20) },
+        thing2: { value: fit(n.message || '活动信息已更新，请查看', 20) },
         phrase3: { value: statusLabel[actRes.data.status] || '已更新' },
-        thing7: { value: actRes.data.bookingPerson || actRes.data.creatorName || '活动负责人' },
+        thing7: { value: fit(actRes.data.bookingPerson || actRes.data.creatorName || '活动负责人', 20) },
       }, activityId, TMPL_STATUS);
       sentCount++;
     }
@@ -169,10 +173,10 @@ async function hookStepCompleted(event, openid) {
       const userRes = await db.collection('users').doc(nextStep.ownerId).get().catch(() => null);
       if (userRes && userRes.data && userRes.data.openid) {
         await sendSubscribeMsg(userRes.data.openid, {
-          thing24: { value: actRes.data.activityUnit || '' },
-          thing12: { value: `${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}` },
-          thing10: { value: actRes.data.venue || '' },
-          name3: { value: nextStep.ownerName || userRes.data.name || '' },
+          thing24: { value: fit(actRes.data.activityUnit, 20) },
+          thing12: { value: fit(`${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}`, 20) },
+          thing10: { value: fit(actRes.data.venue, 20) },
+          name3: { value: fit(nextStep.ownerName || userRes.data.name, 10) },
           time27: { value: nextStep.startTime || '' },
         }, actRes.data._id, undefined, true);  // skipAuthCheck: 与 testSend 一致，绕过 notifyEnabled 检查
         await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
@@ -198,8 +202,8 @@ async function hookStepCompleted(event, openid) {
       notified.add(sup.openid);
       await sendSubscribeMsg(sup.openid, {
         time3: { value: new Date().toTimeString().slice(0, 5) },
-        thing1: { value: actRes.data.venue || '零号店' },
-        thing2: { value: `活动「${actRes.data.activityUnit || ''}」环节「${(doneStep && doneStep.stepName) || ''}」已完成，请安排清洁` },
+        thing1: { value: fit(actRes.data.venue || '零号店', 20) },
+        thing2: { value: fit(`活动「${actRes.data.activityUnit || ''}」环节「${(doneStep && doneStep.stepName) || ''}」已完成，请安排清洁`, 20) },
       }, actRes.data._id, TMPL_CLEAN);
       await recordNotification(activityId, sup._id, sup.name,
         `活动「${actRes.data.activityUnit}」环节「${(doneStep && doneStep.stepName) || ''}」完成→请清洁`);
@@ -269,10 +273,10 @@ async function scheduleForActivity(event) {
         const user = userCache[t.name];
         if (!user || !user.openid) continue;
         tasks.push(createTask(activityId, user, {
-          thing24: { value: act.activityUnit || '' },
-          thing12: { value: `${rule.minutes || 30}分钟后开始` },
-          thing10: { value: act.venue || '' },
-          name3: { value: user.name || act.creatorName || '' },
+          thing24: { value: fit(act.activityUnit, 20) },
+          thing12: { value: fit(`${rule.minutes || 30}分钟后开始`, 20) },
+          thing10: { value: fit(act.venue, 20) },
+          name3: { value: fit(user.name || act.creatorName, 10) },
           time27: { value: arrivalTime || act.activityDate || '' },
         }, triggerAt));
       }
@@ -284,10 +288,10 @@ async function scheduleForActivity(event) {
         const user = userCache[t.name];
         if (!user || !user.openid) continue;
         tasks.push(createTask(activityId, user, {
-          thing24: { value: act.activityUnit || '' },
-          thing12: { value: '活动已结束' },
-          thing10: { value: act.venue || '' },
-          name3: { value: user.name || act.creatorName || '' },
+          thing24: { value: fit(act.activityUnit, 20) },
+          thing12: { value: fit('活动已结束', 20) },
+          thing10: { value: fit(act.venue, 20) },
+          name3: { value: fit(user.name || act.creatorName, 10) },
           time27: { value: arrivalTime || act.activityDate || '' },
         }, triggerAt));
       }
@@ -301,10 +305,10 @@ async function scheduleForActivity(event) {
         const user = userCache[step.ownerId];
         if (!user || !user.openid) continue;
         tasks.push(createTask(activityId, user, {
-          thing24: { value: act.activityUnit || '' },
-          thing12: { value: `${step.stepName || ''}即将开始` },
-          thing10: { value: act.venue || '' },
-          name3: { value: step.ownerName || user.name || '' },
+          thing24: { value: fit(act.activityUnit, 20) },
+          thing12: { value: fit(`${step.stepName || ''}即将开始`, 20) },
+          thing10: { value: fit(act.venue, 20) },
+          name3: { value: fit(step.ownerName || user.name, 10) },
           time27: { value: step.startTime || '' },
         }, triggerAt));
       }
