@@ -172,15 +172,22 @@ async function hookStepCompleted(event, openid) {
     } else {
       const userRes = await db.collection('users').doc(nextStep.ownerId).get().catch(() => null);
       if (userRes && userRes.data && userRes.data.openid) {
-        await sendSubscribeMsg(userRes.data.openid, {
-          thing24: { value: fit(actRes.data.activityUnit, 20) },
-          thing12: { value: fit(`${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}`, 20) },
-          thing10: { value: fit(actRes.data.venue, 20) },
-          name3: { value: fit(nextStep.ownerName || userRes.data.name, 10) },
-          time27: { value: nextStep.startTime || '' },
-        }, actRes.data._id, undefined, true);  // skipAuthCheck: 与 testSend 一致，绕过 notifyEnabled 检查
-        await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
-          `上一环节「${steps[stepIndex].stepName}」已完成→「${nextStep.stepName}」`);
+        const unit = fit(actRes.data.activityUnit, 20);
+        const stepMsg = fit(`${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}`, 20);
+        const venue = fit(actRes.data.venue, 20);
+        const owner = fit(nextStep.ownerName || userRes.data.name, 10);
+        const startTime = nextStep.startTime || '';
+
+        // 多模板接力：TMPL_ID → TMPL_STATUS → TMPL_CLEAN，避免单个模板授权耗尽
+        const sent = await sendRobust(userRes.data.openid, [
+          [TMPL_ID,     { thing24: { value: unit }, thing12: { value: stepMsg }, thing10: { value: venue }, name3: { value: owner }, time27: { value: startTime } }],
+          [TMPL_STATUS, { time4: { value: startTime }, thing1: { value: unit }, thing2: { value: stepMsg }, phrase3: { value: '进行中' }, thing7: { value: owner } }],
+          [TMPL_CLEAN,  { time3: { value: startTime }, thing1: { value: venue }, thing2: { value: stepMsg } }],
+        ], actRes.data._id);
+
+        if (sent) {
+          await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
+            `上一环节「${steps[stepIndex].stepName}」已完成→「${nextStep.stepName}」`);
       }
     }
   }
@@ -509,7 +516,39 @@ async function sendSubscribeMsg(openid, data, pageId, templateId, skipAuthCheck)
     console.log('[sendSubscribeMsg] 发送成功:', tmplId, openid.slice(-6));
   } catch (e) {
     console.error('[sendSubscribeMsg] 发送失败:', e.errCode, e.errMsg || e.message, 'tmplId:', tmplId);
+    throw e;  // 上抛给调用方判断是否需要换模板
   }
+}
+
+/**
+ * 多模板接力发送：授权耗尽时自动换下一模板
+ * tmplDataPairs: [[templateId, dataObj], ...]
+ * 返回成功发送的模板 ID，全部失败返回 null
+ */
+async function sendRobust(openid, tmplDataPairs, pageId) {
+  for (let i = 0; i < tmplDataPairs.length; i++) {
+    const [tmplId, data] = tmplDataPairs[i];
+    try {
+      await cloud.openapi.subscribeMessage.send({
+        touser: openid,
+        templateId: tmplId,
+        page: pageId ? `pages/activity-detail/activity-detail?id=${pageId}` : '',
+        data,
+        miniprogramState: 'trial',
+      });
+      console.log('[sendRobust] 发送成功:', tmplId, openid.slice(-6));
+      return tmplId;
+    } catch (e) {
+      if (e.errCode === 43101) {
+        console.log('[sendRobust] 模板', tmplId, '已用完，尝试下一个');
+        continue;  // 换下一个模板
+      }
+      console.error('[sendRobust] 发送失败:', e.errCode, e.errMsg, 'tmplId:', tmplId);
+      return null;  // 非授权类错误，不再重试
+    }
+  }
+  console.warn('[sendRobust] 所有模板已用完');
+  return null;
 }
 
 /* ========== 查找部门主管（交集逻辑） ========== */
