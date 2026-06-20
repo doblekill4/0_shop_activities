@@ -74,18 +74,17 @@ Page({
     } else {
       // 打开通知：先说明额度，再弹授权（必须由 tap 事件触发）
       const doAuth = () => {
+        const user = getCurrentUser();
+        const tmplIds = [
+          'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+          'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
+        ];
+        if (user && user.department === '保洁') {
+          tmplIds.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
+        }
         wx.requestSubscribeMessage({
-          tmplIds: [
-            'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-            'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
-            'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
-          ],
+          tmplIds,
           success: (res) => {
-            const tmplIds = [
-              'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-              'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
-              'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
-            ];
             if (tmplIds.some(id => res[id] === 'accept')) {
               this.setData({ notifyEnabled: true });
               // 同步 globalData

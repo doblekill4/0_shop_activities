@@ -418,9 +418,12 @@ Page({
 
     const tmplIds = [
       'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-      'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
       'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
     ];
+    // 保洁部门才需要清洁模板
+    if (user.department === '保洁') {
+      tmplIds.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
+    }
 
     wx.showModal({
       title: '通知授权说明',

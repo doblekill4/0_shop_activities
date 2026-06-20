@@ -699,9 +699,12 @@ Page({
         setTimeout(() => {
           const allTmpls = [
             'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-            'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
             'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
           ];
+          const currentUser = getCurrentUser();
+          if (currentUser && currentUser.department === '保洁') {
+            allTmpls.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
+          }
           requestSubscription(allTmpls).catch(() => {});
           wx.cloud.callFunction({
             name: 'auth',
