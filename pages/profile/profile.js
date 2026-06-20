@@ -95,7 +95,7 @@ Page({
                 name: 'auth',
                 data: { action: 'setNotifyEnabled', enabled: true },
               }).catch(() => {});
-              wx.showToast({ title: '已开启通知，每次授权可接收20次', icon: 'success', duration: 2500 });
+              wx.showToast({ title: '已开启通知，每次授权约可接收10次', icon: 'success', duration: 2500 });
             } else {
               wx.showToast({ title: '需授权才能收到通知', icon: 'none' });
             }
@@ -108,7 +108,7 @@ Page({
 
       wx.showModal({
         title: '开启通知授权',
-        content: '授权有消息次数限制，每次授权可接收20次通知。确定要开启吗？',
+        content: '微信消息有次数限制，每次授权约可接收10次通知。多开几次页面即可自动续期。确定要开启吗？',
         confirmText: '确定开启',
         success: (res) => {
           if (res.confirm) doAuth();
