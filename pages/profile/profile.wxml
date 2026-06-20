@@ -129,7 +129,7 @@
         <view class="menu-item">
           <text class="menu-icon">📱</text>
           <text class="menu-label">版本</text>
-          <text class="menu-val">v1.0.0</text>
+          <text class="menu-val">v{{appVersion}}</text>
         </view>
       </view>
     </view>
