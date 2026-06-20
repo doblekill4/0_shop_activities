@@ -20,13 +20,12 @@ Component({
       const app = getApp();
       const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
       // 显式关闭 → 不显示
-      if (user.notifyEnabled === false) { this.setData({ visible: false }); return; }
-      // 版本不匹配 → 显示
+      if (user.notifyEnabled === false) { this.setData({ visible: false, reason: '' }); return; }
+      // 仅版本不匹配时显示（不判断未授权，避免干扰手动关闭的用户）
       if (user.notifyAuthVersion && user.notifyAuthVersion !== app.globalData.appVersion) {
-        this.setData({ visible: true }); return;
+        this.setData({ visible: true, reason: '版本已更新' }); return;
       }
-      // 从未授权 → 显示
-      this.setData({ visible: !user.notifyAuthAt });
+      this.setData({ visible: false, reason: '' });
     },
 
     onTap() {

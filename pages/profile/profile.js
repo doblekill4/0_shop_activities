@@ -73,6 +73,11 @@ Page({
     if (currentlyEnabled) {
       // 关闭通知
       this.setData({ notifyEnabled: false });
+      // 同步 globalData 和 Storage，防止其他页面 overlay 误判
+      const app = getApp();
+      if (app.globalData.userInfo) app.globalData.userInfo.notifyEnabled = false;
+      const cached = wx.getStorageSync('userInfo');
+      if (cached) { cached.notifyEnabled = false; wx.setStorageSync('userInfo', cached); }
       wx.cloud.callFunction({
         name: 'auth',
         data: { action: 'setNotifyEnabled', enabled: false },
