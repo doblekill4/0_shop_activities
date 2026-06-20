@@ -25,6 +25,7 @@ Page({
     filterBooker: '',
     canCreate: false,
     showRegister: false,
+    showNotifyBanner: false,  // 通知授权横幅
     timer: null,   // 20秒自动刷新定时器
   },
 
@@ -83,8 +84,8 @@ Page({
       this._needRefresh = false;
       this.loadActivities(true);
     }
-    // 每次进入首页询问订阅授权（每天最多弹一次）
-    this._requestNotifyAuth();
+    // 检查是否需要显示授权横幅
+    this._checkNotifyAuth();
   },
 
   onHide() {
@@ -410,43 +411,38 @@ Page({
     wx.navigateTo({ url: '/pages/activity-create/activity-create' });
   },
 
-  // 每次进入首页：通知开关开启时弹授权
-  _requestNotifyAuth() {
+  // 每次进入首页：如果需要授权则显示横幅
+  _checkNotifyAuth() {
     const app = getApp();
     const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
-    // 只有显式关闭才跳过，缓存缺失/undefined 视为开启（新用户/自动登录兜底）
-    if (user.notifyEnabled === false) return;
+    // 只有显式关闭才隐藏横幅
+    const needAuth = user.notifyEnabled !== false;
+    this.setData({ showNotifyBanner: needAuth });
+  },
 
+  // 点击横幅 → 直接拉微信授权（tap 上下文保证有效）
+  onNotifyBannerTap() {
+    const app = getApp();
+    const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
     const tmplIds = [
       'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
       'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
     ];
-    // 保洁部门才需要清洁模板
     if (user.department === '保洁') {
       tmplIds.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
     }
-
-    wx.showModal({
-      title: '通知授权说明',
-      content: '授权后可接收活动环节通知。每次进入页面都会自动续期，建议保持开启。',
-      confirmText: '确定授权',
-      cancelText: '暂不',
-      success: (res) => {
-        if (!res.confirm) return;
-        // 从 modal success 可直接拉起授权（tap 上下文）
-        wx.requestSubscribeMessage({
-          tmplIds,
-          success: (authRes) => {
-            if (tmplIds.some(id => authRes[id] === 'accept')) {
-              wx.cloud.callFunction({
-                name: 'auth',
-                data: { action: 'setNotifyEnabled', enabled: true },
-              }).catch(() => {});
-            }
-          },
-          fail: () => {},
-        });
+    wx.requestSubscribeMessage({
+      tmplIds,
+      success: (authRes) => {
+        if (tmplIds.some(id => authRes[id] === 'accept')) {
+          this.setData({ showNotifyBanner: false });
+          wx.cloud.callFunction({
+            name: 'auth',
+            data: { action: 'setNotifyEnabled', enabled: true },
+          }).catch(() => {});
+        }
       },
+      fail: () => {},
     });
   },
 
