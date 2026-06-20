@@ -72,16 +72,29 @@ async function sendChangeNotification(event, openid) {
 
   let sentCount = 0;
   if (notifications.length > 0) {
-    const steps = actRes.data.steps || [];
+    const activityDate = actRes.data.activityDate;
+    // 查当天所有非草稿活动，统计每人总环节数
+    let allSteps = [];
+    try {
+      const dayActs = await db.collection('activities')
+        .where({ activityDate, status: _.neq('draft') })
+        .field({ steps: true })
+        .get();
+      (dayActs.data || []).forEach(a => {
+        if (!String(a._id).startsWith('_')) allSteps.push(...(a.steps || []));
+      });
+    } catch (e) { /* 失败时仅用当前活动 */ }
+    
     for (const n of notifications) {
       await db.collection('notifications').add({ data: n });
-      // 统计此人负责的环节数
-      const stepCount = steps.filter(s => s.ownerId === n.userId || s.ownerName === n.userName).length;
+      // 统计此人当天所有活动中的总环节数
+      const totalCount = allSteps.filter(s => s.ownerId === n.userId || s.ownerName === n.userName).length;
       const arrivalTime = actRes.data.arrivalTime || '';
+      const dateStr = activityDate ? activityDate.slice(5).replace('-','月') + '日' : '今日';
       await sendSubscribeMsg(n.openid, {
         time4: { value: arrivalTime || (new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2,'0')) },
-        thing1: { value: fit(n.activityUnit, 20) },
-        thing2: { value: stepCount > 0 ? fit(`${stepCount}个环节需留意`, 20) : fit(n.message || '活动已更新', 20) },
+        thing1: { value: fit(dateStr, 20) },
+        thing2: { value: totalCount > 0 ? fit(`${totalCount}个环节需留意`, 20) : fit(n.message || '活动已更新', 20) },
         phrase3: { value: '进行中' },
         thing7: { value: fit(actRes.data.bookingPerson || actRes.data.creatorName || '负责人', 20) },
       }, activityId, TMPL_STATUS);
