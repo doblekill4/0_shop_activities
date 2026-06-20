@@ -54,7 +54,7 @@
   <!-- 通知授权横幅 -->
   <view class="notify-banner" wx:if="{{showNotifyBanner}}" bindtap="onNotifyBannerTap">
     <text class="notify-banner-icon">🔔</text>
-    <text class="notify-banner-text">点击授权通知，接收活动环节提醒</text>
+    <text class="notify-banner-text">点击开启通知授权</text>
     <text class="notify-banner-arrow">›</text>
   </view>
 

@@ -99,6 +99,7 @@
 .ns-label { color: #999; }
 .ns-value { color: #333; }
 .notify-status-row.error .ns-value { color: #D32F2F; font-size: 20rpx; word-break: break-all; }
+.ns-mismatch { color: #E65100; font-weight: 600; }
 
 /* 退出 */
 .logout-btn {

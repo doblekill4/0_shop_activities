@@ -107,6 +107,10 @@
             <text class="ns-label">上次授权</text>
             <text class="ns-value">{{notifyAuthAt}}</text>
           </view>
+          <view class="notify-status-row" wx:if="{{notifyAuthVersion}}">
+            <text class="ns-label">授权版本</text>
+            <text class="ns-value {{notifyAuthVersion !== appVersion ? 'ns-mismatch' : ''}}">{{notifyAuthVersion}} {{notifyAuthVersion !== appVersion ? '⚠需更新' : '✓'}}</text>
+          </view>
           <view class="notify-status-row">
             <text class="ns-label">已发送</text>
             <text class="ns-value">{{notifySentCount}} 条</text>

@@ -415,9 +415,12 @@ Page({
   _checkNotifyAuth() {
     const app = getApp();
     const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
-    // 只有显式关闭才隐藏横幅
-    const needAuth = user.notifyEnabled !== false;
-    this.setData({ showNotifyBanner: needAuth });
+    if (user.notifyEnabled === false) { this.setData({ showNotifyBanner: false }); return; }
+    // 版本更新后需重新授权
+    if (user.notifyAuthVersion && user.notifyAuthVersion !== app.globalData.appVersion) {
+      this.setData({ showNotifyBanner: true }); return;
+    }
+    this.setData({ showNotifyBanner: !user.notifyAuthAt });
   },
 
   // 点击横幅 → 直接拉微信授权（tap 上下文保证有效）
@@ -442,7 +445,7 @@ Page({
           }).catch(() => {});
           wx.cloud.callFunction({
             name: 'auth',
-            data: { action: 'resetNotifyCount' },
+            data: { action: 'resetNotifyCount', version: getApp().globalData.appVersion },
           }).catch(() => {});
         }
       },

@@ -92,7 +92,7 @@ App({
     userInfo: null,     // { _id, name, department, permissions[], role }
     loginReady: false,  // 登录检测是否完成
     // role: 'admin' | 'manager' | 'user'
-    appVersion: '1.0.0',
+    appVersion: '2.0.0',
     // 权限标识
     PERMISSIONS: {
       CREATE_ACTIVITY: 'create_activity',

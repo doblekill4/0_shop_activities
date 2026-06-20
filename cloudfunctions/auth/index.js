@@ -357,6 +357,7 @@ async function resetNotifyCount(openid) {
     await db.collection('users').where({ openid }).update({
       data: {
         notifyAuthAt: new Date(),
+        notifyAuthVersion: event.version || '',
         notifySentCount: 0,
         notifyLastError: '',
       }

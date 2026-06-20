@@ -712,7 +712,7 @@ Page({
           }).catch(() => {});
           wx.cloud.callFunction({
             name: 'auth',
-            data: { action: 'resetNotifyCount' },
+            data: { action: 'resetNotifyCount', version: getApp().globalData.appVersion },
           }).catch(() => {});
         }, 1500);
         setTimeout(() => {

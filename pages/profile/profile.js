@@ -22,6 +22,7 @@ Page({
     permList: [],
     isAdmin: false,
     notifyEnabled: true,
+    appVersion: '',
     capacityDate: '',
   },
 
@@ -57,8 +58,10 @@ Page({
       permList: permList.filter(p => p.has),
       isAdmin: admin,
       permFlags,
+      appVersion: getApp().globalData.appVersion || '',
       notifyEnabled: user.notifyEnabled !== false,
       notifyAuthAt: user.notifyAuthAt || '',
+      notifyAuthVersion: user.notifyAuthVersion || '',
       notifySentCount: user.notifySentCount || 0,
       notifyLastError: user.notifyLastError || '',
       capacityDate: todayStr,
@@ -97,7 +100,7 @@ Page({
             }).catch(() => {});
             wx.cloud.callFunction({
               name: 'auth',
-              data: { action: 'resetNotifyCount' },
+              data: { action: 'resetNotifyCount', version: getApp().globalData.appVersion },
             }).catch(() => {});
             wx.showToast({ title: '已开启通知', icon: 'success' });
           } else {
