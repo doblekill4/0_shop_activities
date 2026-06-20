@@ -440,6 +440,10 @@ Page({
             name: 'auth',
             data: { action: 'setNotifyEnabled', enabled: true },
           }).catch(() => {});
+          wx.cloud.callFunction({
+            name: 'auth',
+            data: { action: 'resetNotifyCount' },
+          }).catch(() => {});
         }
       },
       fail: () => {},

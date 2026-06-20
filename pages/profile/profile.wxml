@@ -102,6 +102,20 @@
           <text class="menu-label">接收活动通知</text>
           <switch checked="{{notifyEnabled}}" color="#2E7D32" disabled />
         </view>
+        <view class="notify-status" wx:if="{{notifyAuthAt}}">
+          <view class="notify-status-row">
+            <text class="ns-label">上次授权</text>
+            <text class="ns-value">{{notifyAuthAt}}</text>
+          </view>
+          <view class="notify-status-row">
+            <text class="ns-label">已发送</text>
+            <text class="ns-value">{{notifySentCount}} 条</text>
+          </view>
+          <view class="notify-status-row error" wx:if="{{notifyLastError}}">
+            <text class="ns-label">最近错误</text>
+            <text class="ns-value">{{notifyLastError}}</text>
+          </view>
+        </view>
       </view>
     </view>
 

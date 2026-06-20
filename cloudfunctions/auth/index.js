@@ -24,6 +24,8 @@ exports.main = async (event, context) => {
         return await resetStoreGroup(openid);
       case 'setNotifyEnabled':
         return await setNotifyEnabled(openid, event.enabled);
+      case 'resetNotifyCount':
+        return await resetNotifyCount(openid);
       case 'listUsers':
         return await listUsers();
       case 'setUserStatus':
@@ -346,6 +348,23 @@ async function setNotifyEnabled(openid, enabled) {
   } catch (e) {
     console.error('[setNotifyEnabled] 失败', e);
     return { code: -1, message: '更新失败' };
+  }
+}
+
+/* ========== 重置通知计数（授权成功后调用） ========== */
+async function resetNotifyCount(openid) {
+  try {
+    await db.collection('users').where({ openid }).update({
+      data: {
+        notifyAuthAt: new Date(),
+        notifySentCount: 0,
+        notifyLastError: '',
+      }
+    });
+    return { code: 0, message: '已重置' };
+  } catch (e) {
+    console.error('[resetNotifyCount] 失败', e);
+    return { code: -1, message: '重置失败' };
   }
 }
 

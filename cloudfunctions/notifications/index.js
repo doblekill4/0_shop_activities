@@ -492,7 +492,6 @@ async function testSend(event, openid) {
 /* ========== 发送订阅消息（检查用户通知开关，支持多模板） ========== */
 // templateId: 不传则默认用定时提醒模板
 // skipAuthCheck: true 跳过 notifyEnabled 检查（用于 hookStepCompleted 等实时通知场景）
-//   testSend 也是跳过检查直发，因为 43101 与用户开关无关，纯属订阅授权问题
 async function sendSubscribeMsg(openid, data, pageId, templateId, skipAuthCheck) {
   const tmplId = templateId || TMPL_ID;
   if (!skipAuthCheck) {
@@ -515,18 +514,20 @@ async function sendSubscribeMsg(openid, data, pageId, templateId, skipAuthCheck)
       miniprogramState: 'trial',
     });
     console.log('[sendSubscribeMsg] 发送成功:', tmplId, openid.slice(-6));
+    await incrNotifyCount(openid);
   } catch (e) {
     console.error('[sendSubscribeMsg] 发送失败:', e.errCode, e.errMsg || e.message, 'tmplId:', tmplId);
+    await setNotifyError(openid, e.errCode || 0, e.errMsg || e.message || '');
     throw e;  // 上抛给调用方判断是否需要换模板
   }
 }
 
 /**
  * 多模板接力发送：授权耗尽时自动换下一模板
- * tmplDataPairs: [[templateId, dataObj], ...]
  * 返回成功发送的模板 ID，全部失败返回 null
  */
 async function sendRobust(openid, tmplDataPairs, pageId) {
+  let lastErr = '';
   for (let i = 0; i < tmplDataPairs.length; i++) {
     const [tmplId, data] = tmplDataPairs[i];
     try {
@@ -538,18 +539,38 @@ async function sendRobust(openid, tmplDataPairs, pageId) {
         miniprogramState: 'trial',
       });
       console.log('[sendRobust] 发送成功:', tmplId, openid.slice(-6));
+      await incrNotifyCount(openid);
       return tmplId;
     } catch (e) {
+      lastErr = `[${e.errCode}] ${e.errMsg || e.message || ''}`;
       if (e.errCode === 43101) {
         console.log('[sendRobust] 模板', tmplId, '已用完，尝试下一个');
-        continue;  // 换下一个模板
+        continue;
       }
       console.error('[sendRobust] 发送失败:', e.errCode, e.errMsg, 'tmplId:', tmplId);
-      return null;  // 非授权类错误，不再重试
+      await setNotifyError(openid, e.errCode || 0, e.errMsg || e.message || '');
+      return null;
     }
   }
   console.warn('[sendRobust] 所有模板已用完');
+  await setNotifyError(openid, 43101, lastErr || '所有模板授权已用完');
   return null;
+}
+
+/* ========== 通知状态追踪 ========== */
+async function incrNotifyCount(openid) {
+  try {
+    await db.collection('users').where({ openid }).update({
+      data: { notifySentCount: db.command.inc(1), notifyLastError: '' }
+    });
+  } catch (e) { /* 非致命 */ }
+}
+async function setNotifyError(openid, code, msg) {
+  try {
+    await db.collection('users').where({ openid }).update({
+      data: { notifyLastError: `${new Date().toISOString().slice(0,16).replace('T',' ')} [${code}] ${msg}`.slice(0, 200) }
+    });
+  } catch (e) { /* 非致命 */ }
 }
 
 /* ========== 查找部门主管（交集逻辑） ========== */

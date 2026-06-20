@@ -58,6 +58,9 @@ Page({
       isAdmin: admin,
       permFlags,
       notifyEnabled: user.notifyEnabled !== false,
+      notifyAuthAt: user.notifyAuthAt || '',
+      notifySentCount: user.notifySentCount || 0,
+      notifyLastError: user.notifyLastError || '',
       capacityDate: todayStr,
     });
   },
@@ -91,6 +94,10 @@ Page({
             wx.cloud.callFunction({
               name: 'auth',
               data: { action: 'setNotifyEnabled', enabled: true },
+            }).catch(() => {});
+            wx.cloud.callFunction({
+              name: 'auth',
+              data: { action: 'resetNotifyCount' },
             }).catch(() => {});
             wx.showToast({ title: '已开启通知', icon: 'success' });
           } else {
