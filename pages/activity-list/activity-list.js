@@ -413,8 +413,9 @@ Page({
   // 每次进入首页：通知开关开启时弹授权
   _requestNotifyAuth() {
     const app = getApp();
-    const user = app.globalData.userInfo;
-    if (!user || !user.notifyEnabled) return;
+    const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+    // 只有显式关闭才跳过，缓存缺失/undefined 视为开启（新用户/自动登录兜底）
+    if (user.notifyEnabled === false) return;
 
     const tmplIds = [
       'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
