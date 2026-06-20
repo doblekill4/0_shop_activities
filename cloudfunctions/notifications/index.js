@@ -74,9 +74,10 @@ async function sendChangeNotification(event, openid) {
     for (const n of notifications) {
       await db.collection('notifications').add({ data: n });
       // 使用活动状态变更通知模板
-      const statusLabel = { draft: '草稿', pending: '待确认', confirmed: '已确认', settled: '已结算' };
+      const arrivalTime = actRes.data.arrivalTime || '';
+      const statusLabel = { pending: '待确认', confirmed: '已确认', settled: '已结算' };
       await sendSubscribeMsg(n.openid, {
-        time4: { value: actRes.data.arrivalTime || actRes.data.activityDate || '' },
+        time4: { value: arrivalTime || (new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2,'0')) },
         thing1: { value: fit(n.activityUnit, 20) },
         thing2: { value: fit(n.message || '活动信息已更新，请查看', 20) },
         phrase3: { value: statusLabel[actRes.data.status] || '已更新' },
