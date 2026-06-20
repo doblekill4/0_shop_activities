@@ -410,11 +410,11 @@ Page({
     wx.navigateTo({ url: '/pages/activity-create/activity-create' });
   },
 
-  // 每次进入首页：通知开关开启时弹授权（微信原生去重）
+  // 每次进入首页：通知开关开启时弹授权
   _requestNotifyAuth() {
     const app = getApp();
     const user = app.globalData.userInfo;
-    if (!user || !user.notifyEnabled) return;  // 开关关闭，不弹
+    if (!user || !user.notifyEnabled) return;
 
     const tmplIds = [
       'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
@@ -422,34 +422,28 @@ Page({
       'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
     ];
 
-    const doAuth = () => {
-      wx.requestSubscribeMessage({
-        tmplIds,
-        success: (res) => {
-          if (tmplIds.some(id => res[id] === 'accept')) {
-            wx.cloud.callFunction({
-              name: 'auth',
-              data: { action: 'setNotifyEnabled', enabled: true },
-            }).catch(() => {});
-          }
-        },
-        fail: () => {},
-      });
-    };
-
-    // 首次弹出前先说明额度限制
-    if (!wx.getStorageSync('notify_auth_info_shown')) {
-      wx.setStorageSync('notify_auth_info_shown', true);
-      wx.showModal({
-        title: '开启通知授权',
-        content: '授权有消息次数限制，每次授权可接收20次通知。建议保持通知开启，每次进入页面都会自动续期。',
-        confirmText: '我知道了',
-        showCancel: false,
-        success: () => { setTimeout(doAuth, 300); },
-      });
-    } else {
-      setTimeout(doAuth, 300);
-    }
+    wx.showModal({
+      title: '通知授权说明',
+      content: '授权有消息次数限制，每次授权可接收20次通知。建议保持授权，每次进入页面都会自动续期。',
+      confirmText: '确定授权',
+      cancelText: '暂不',
+      success: (res) => {
+        if (!res.confirm) return;
+        // 从 modal success 可直接拉起授权（tap 上下文）
+        wx.requestSubscribeMessage({
+          tmplIds,
+          success: (authRes) => {
+            if (tmplIds.some(id => authRes[id] === 'accept')) {
+              wx.cloud.callFunction({
+                name: 'auth',
+                data: { action: 'setNotifyEnabled', enabled: true },
+              }).catch(() => {});
+            }
+          },
+          fail: () => {},
+        });
+      },
+    });
   },
 
   onRegisterSuccess(e) {
