@@ -72,28 +72,46 @@ Page({
         data: { action: 'setNotifyEnabled', enabled: false },
       }).catch(() => {});
     } else {
-      // 打开通知：先弹授权（必须由 tap 事件触发）
-      wx.requestSubscribeMessage({
-        tmplIds: [
-          'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',            // 定时提醒
-          'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',            // 清洁任务提醒
-          'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',            // 活动状态变更通知
-        ],
+      // 打开通知：先说明额度，再弹授权（必须由 tap 事件触发）
+      const doAuth = () => {
+        wx.requestSubscribeMessage({
+          tmplIds: [
+            'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+            'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
+            'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
+          ],
+          success: (res) => {
+            const tmplIds = [
+              'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+              'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
+              'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
+            ];
+            if (tmplIds.some(id => res[id] === 'accept')) {
+              this.setData({ notifyEnabled: true });
+              // 同步 globalData
+              const app = getApp();
+              if (app.globalData.userInfo) app.globalData.userInfo.notifyEnabled = true;
+              wx.cloud.callFunction({
+                name: 'auth',
+                data: { action: 'setNotifyEnabled', enabled: true },
+              }).catch(() => {});
+              wx.showToast({ title: '已开启通知，每次授权可接收20次', icon: 'success', duration: 2500 });
+            } else {
+              wx.showToast({ title: '需授权才能收到通知', icon: 'none' });
+            }
+          },
+          fail: () => {
+            wx.showToast({ title: '授权失败，请重试', icon: 'none' });
+          },
+        });
+      };
+
+      wx.showModal({
+        title: '开启通知授权',
+        content: '授权有消息次数限制，每次授权可接收20次通知。确定要开启吗？',
+        confirmText: '确定开启',
         success: (res) => {
-          const accepted = res['XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70'] === 'accept';
-          if (accepted) {
-            this.setData({ notifyEnabled: true });
-            wx.cloud.callFunction({
-              name: 'auth',
-              data: { action: 'setNotifyEnabled', enabled: true },
-            }).catch(() => {});
-            wx.showToast({ title: '已开启通知', icon: 'success' });
-          } else {
-            wx.showToast({ title: '需授权才能收到通知', icon: 'none' });
-          }
-        },
-        fail: () => {
-          wx.showToast({ title: '授权失败，请重试', icon: 'none' });
+          if (res.confirm) doAuth();
         },
       });
     }

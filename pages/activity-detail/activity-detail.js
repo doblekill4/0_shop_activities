@@ -265,7 +265,7 @@ Page({
     this.setData({ revisions });
   },
 
-  // 环节负责人确认完成（确认后先刷新订阅额度，再提交）
+  // 环节负责人确认完成
   confirmStepDone(e) {
     const stepId = e.currentTarget.dataset.stepId;
     wx.showModal({
@@ -273,19 +273,7 @@ Page({
       content: '确认该环节已完成？此操作不可撤销，将自动写入修订日志。',
       success: (res) => {
         if (!res.confirm) return;
-        // 弹订阅授权刷新额度（modal 的 success 也属于 tap 上下文，可触发授权）
-        const tmplIds = [
-          'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-          'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
-          'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
-        ];
-        wx.requestSubscribeMessage({
-          tmplIds,
-          complete: () => {
-            // 无论授权成不成功，都继续提交（不阻塞操作）
-            this._doConfirmStepDone(stepId);
-          },
-        });
+        this._doConfirmStepDone(stepId);
       },
     });
   },

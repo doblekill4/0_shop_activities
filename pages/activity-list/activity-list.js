@@ -410,20 +410,23 @@ Page({
     wx.navigateTo({ url: '/pages/activity-create/activity-create' });
   },
 
-  // 每次进入首页询问订阅授权（微信原生去重，已同意"一直允许"不会反复弹）
+  // 每次进入首页：通知开关开启时弹授权（微信原生去重）
   _requestNotifyAuth() {
+    const app = getApp();
+    const user = app.globalData.userInfo;
+    if (!user || !user.notifyEnabled) return;  // 开关关闭，不弹
+
     const tmplIds = [
       'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
       'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg',
       'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
     ];
 
-    setTimeout(() => {
+    const doAuth = () => {
       wx.requestSubscribeMessage({
         tmplIds,
         success: (res) => {
-          const accepted = tmplIds.filter(id => res[id] === 'accept');
-          if (accepted.length > 0) {
+          if (tmplIds.some(id => res[id] === 'accept')) {
             wx.cloud.callFunction({
               name: 'auth',
               data: { action: 'setNotifyEnabled', enabled: true },
@@ -431,16 +434,22 @@ Page({
           }
         },
         fail: () => {},
-        complete: () => {
-          if (!wx.getStorageSync('notify_auth_tip_shown')) {
-            wx.setStorageSync('notify_auth_tip_shown', true);
-            setTimeout(() => {
-              wx.showToast({ title: '可在"我的"页面重新开启通知', icon: 'none', duration: 2500 });
-            }, 1000);
-          }
-        },
       });
-    }, 300);
+    };
+
+    // 首次弹出前先说明额度限制
+    if (!wx.getStorageSync('notify_auth_info_shown')) {
+      wx.setStorageSync('notify_auth_info_shown', true);
+      wx.showModal({
+        title: '开启通知授权',
+        content: '授权有消息次数限制，每次授权可接收20次通知。建议保持通知开启，每次进入页面都会自动续期。',
+        confirmText: '我知道了',
+        showCancel: false,
+        success: () => { setTimeout(doAuth, 300); },
+      });
+    } else {
+      setTimeout(doAuth, 300);
+    }
   },
 
   onRegisterSuccess(e) {
