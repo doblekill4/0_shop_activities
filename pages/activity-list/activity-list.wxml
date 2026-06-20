@@ -51,13 +51,6 @@
     </view>
   </view>
 
-  <!-- 通知授权横幅 -->
-  <view class="notify-banner" wx:if="{{showNotifyBanner}}" bindtap="onNotifyBannerTap">
-    <text class="notify-banner-icon">🔔</text>
-    <text class="notify-banner-text">点击开启通知授权</text>
-    <text class="notify-banner-arrow">›</text>
-  </view>
-
   <!-- 活动列表 -->
   <scroll-view
     class="activity-list"
@@ -156,5 +149,6 @@
   </scroll-view>
 
   <register-dialog visible="{{showRegister}}" bind:success="onRegisterSuccess" />
+  <notify-overlay />
 
 </view>

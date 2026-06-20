@@ -382,4 +382,5 @@
   </view>
 
   <register-dialog visible="{{showRegister}}" bind:success="onRegisterSuccess" />
+  <notify-overlay />
 </view>

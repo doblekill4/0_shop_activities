@@ -146,19 +146,6 @@
 
 .stat-text { font-size: 24rpx; color: #888; }
 
-/* 通知授权横幅 */
-.notify-banner {
-  display: flex;
-  align-items: center;
-  margin: 8rpx 24rpx;
-  padding: 18rpx 24rpx;
-  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
-  border-radius: 12rpx;
-  border: 2rpx solid #A5D6A7;
-}
-.notify-banner-icon { font-size: 36rpx; margin-right: 16rpx; }
-.notify-banner-text { flex: 1; font-size: 26rpx; color: #2E7D32; font-weight: 500; }
-.notify-banner-arrow { font-size: 36rpx; color: #2E7D32; font-weight: 300; }
 
 .add-btn {
   display: flex;

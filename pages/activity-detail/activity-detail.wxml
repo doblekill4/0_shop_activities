@@ -259,5 +259,6 @@
     </view>
 
   </scroll-view>
+  <notify-overlay />
 
 </view>

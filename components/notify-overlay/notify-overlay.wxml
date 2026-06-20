@@ -1,0 +1,7 @@
+<view class="overlay-mask" wx:if="{{visible}}" bindtap="onTap" catchtouchmove="noop">
+  <view class="overlay-card" catchtap="onTap">
+    <text class="overlay-icon">🔔</text>
+    <text class="overlay-title">开启通知授权</text>
+    <text class="overlay-desc">点击任意位置授权，接收活动环节提醒</text>
+  </view>
+</view>

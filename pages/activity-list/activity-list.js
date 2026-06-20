@@ -25,7 +25,6 @@ Page({
     filterBooker: '',
     canCreate: false,
     showRegister: false,
-    showNotifyBanner: false,  // 通知授权横幅
     timer: null,   // 20秒自动刷新定时器
   },
 
@@ -84,8 +83,6 @@ Page({
       this._needRefresh = false;
       this.loadActivities(true);
     }
-    // 检查是否需要显示授权横幅
-    this._checkNotifyAuth();
   },
 
   onHide() {
@@ -409,48 +406,6 @@ Page({
 
   goCreate() {
     wx.navigateTo({ url: '/pages/activity-create/activity-create' });
-  },
-
-  // 每次进入首页：如果需要授权则显示横幅
-  _checkNotifyAuth() {
-    const app = getApp();
-    const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
-    if (user.notifyEnabled === false) { this.setData({ showNotifyBanner: false }); return; }
-    // 版本更新后需重新授权
-    if (user.notifyAuthVersion && user.notifyAuthVersion !== app.globalData.appVersion) {
-      this.setData({ showNotifyBanner: true }); return;
-    }
-    this.setData({ showNotifyBanner: !user.notifyAuthAt });
-  },
-
-  // 点击横幅 → 直接拉微信授权（tap 上下文保证有效）
-  onNotifyBannerTap() {
-    const app = getApp();
-    const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
-    const tmplIds = [
-      'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-      'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
-    ];
-    if (user.department === '保洁') {
-      tmplIds.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
-    }
-    wx.requestSubscribeMessage({
-      tmplIds,
-      success: (authRes) => {
-        if (tmplIds.some(id => authRes[id] === 'accept')) {
-          this.setData({ showNotifyBanner: false });
-          wx.cloud.callFunction({
-            name: 'auth',
-            data: { action: 'setNotifyEnabled', enabled: true },
-          }).catch(() => {});
-          wx.cloud.callFunction({
-            name: 'auth',
-            data: { action: 'resetNotifyCount', version: getApp().globalData.appVersion },
-          }).catch(() => {});
-        }
-      },
-      fail: () => {},
-    });
   },
 
   onRegisterSuccess(e) {

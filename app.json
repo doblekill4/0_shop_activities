@@ -64,5 +64,7 @@
   "cloud": true,
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
-  "usingComponents": {}
+  "usingComponents": {
+    "notify-overlay": "/components/notify-overlay/notify-overlay"
+  }
 }

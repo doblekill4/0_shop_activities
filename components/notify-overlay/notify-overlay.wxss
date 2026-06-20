@@ -1,0 +1,20 @@
+.overlay-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.overlay-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx;
+  text-align: center;
+  width: 520rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.2);
+}
+.overlay-icon { font-size: 80rpx; display: block; margin-bottom: 20rpx; }
+.overlay-title { font-size: 36rpx; font-weight: 700; color: #333; display: block; margin-bottom: 12rpx; }
+.overlay-desc { font-size: 26rpx; color: #888; display: block; line-height: 1.5; }

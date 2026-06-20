@@ -261,5 +261,6 @@
       </view>
     </view>
   </view>
+  <notify-overlay />
 
 </view>
