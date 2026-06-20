@@ -42,11 +42,18 @@ Component({
         tmplIds,
         success: (res) => {
           if (tmplIds.some(id => res[id] === 'accept')) {
-            // 更新 globalData
+            // 更新 globalData + Storage
             if (app.globalData.userInfo) {
               app.globalData.userInfo.notifyAuthAt = new Date().toISOString();
               app.globalData.userInfo.notifyAuthVersion = app.globalData.appVersion;
               app.globalData.userInfo.notifyEnabled = true;
+            }
+            const cached = wx.getStorageSync('userInfo');
+            if (cached) {
+              cached.notifyAuthAt = new Date().toISOString();
+              cached.notifyAuthVersion = app.globalData.appVersion;
+              cached.notifyEnabled = true;
+              wx.setStorageSync('userInfo', cached);
             }
             wx.cloud.callFunction({
               name: 'auth',

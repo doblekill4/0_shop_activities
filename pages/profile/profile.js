@@ -99,6 +99,8 @@ Page({
             this.setData({ notifyEnabled: true });
             const app = getApp();
             if (app.globalData.userInfo) app.globalData.userInfo.notifyEnabled = true;
+            const cached = wx.getStorageSync('userInfo');
+            if (cached) { cached.notifyEnabled = true; wx.setStorageSync('userInfo', cached); }
             wx.cloud.callFunction({
               name: 'auth',
               data: { action: 'setNotifyEnabled', enabled: true },
