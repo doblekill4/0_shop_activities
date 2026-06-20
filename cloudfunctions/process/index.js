@@ -179,16 +179,20 @@ async function confirmStep(event, openid) {
   await addRevisionLog(activityId, openid, userInfo.name, 'confirmStep', { stepName: steps[idx].stepName });
 
   // 钩子：检查是否有「上一流程结束后通知下一环节负责人」规则
+  let notifyResult = { sent: false, ownerName: '' };
   try {
-    await cloud.callFunction({
+    const hookRes = await cloud.callFunction({
       name: 'notifications',
       data: { action: 'hookStepCompleted', activityId, stepIndex: idx },
     });
+    if (hookRes.result && hookRes.result.data) {
+      notifyResult = hookRes.result.data;
+    }
   } catch (e) {
     console.warn('[confirmStep] 通知钩子调用失败（非致命）', e.message);
   }
 
-  return { code: 0, message: '环节已确认完成' };
+  return { code: 0, message: '环节已确认完成', notify: notifyResult };
 }
 
 /* ========== 撤销环节完成 ========== */

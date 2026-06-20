@@ -158,19 +158,28 @@ async function hookStepCompleted(event, openid) {
   // 下一环节通知（timingIndex === 3）：跳过已完成的环节，顺延通知下一个未完成环节
   const hasNextStep = rules.some(r => r.timingIndex === 3);
   console.log('[hookStepCompleted] hasNextStep:', hasNextStep, 'steps total:', steps.length);
+  const notifyInfo = { sent: false, ownerName: '', ownerNotifyEnabled: true };
   if (hasNextStep) {
     let nextIdx = stepIndex + 1;
     while (nextIdx < steps.length && steps[nextIdx].completedAt) {
-      nextIdx++; // 跳过已完成的环节
+      nextIdx++;
     }
     const nextStep = steps[nextIdx];
     console.log('[hookStepCompleted] nextIdx:', nextIdx, 'nextStep:', nextStep ? nextStep.stepName : '无', 'ownerId:', nextStep ? nextStep.ownerId : '');
     if (!nextStep) {
       console.log('[hookStepCompleted] 无下一环节（已是最后一个），跳过通知');
+      notifyInfo.reason = 'last_step';
     } else if (!nextStep.ownerId || nextStep.ownerId === '__pending__') {
-      console.log('[hookStepCompleted] 下一环节「' + nextStep.stepName + '」无负责人或待分配，跳过通知');
+      console.log('[hookStepCompleted] 下一环节无负责人或待分配，跳过通知');
+      notifyInfo.ownerName = nextStep.stepName || '';
+      notifyInfo.reason = 'no_owner';
     } else {
+      notifyInfo.ownerName = nextStep.ownerName || '';
       const userRes = await db.collection('users').doc(nextStep.ownerId).get().catch(() => null);
+      if (userRes && userRes.data) {
+        notifyInfo.ownerNotifyEnabled = userRes.data.notifyEnabled !== false;
+        notifyInfo.ownerName = userRes.data.name || nextStep.ownerName || '';
+      }
       if (userRes && userRes.data && userRes.data.openid) {
         const unit = fit(actRes.data.activityUnit, 20);
         const stepMsg = fit(`${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}`, 20);
@@ -178,13 +187,13 @@ async function hookStepCompleted(event, openid) {
         const owner = fit(nextStep.ownerName || userRes.data.name, 10);
         const startTime = nextStep.startTime || '';
 
-        // 多模板接力：TMPL_ID → TMPL_STATUS → TMPL_CLEAN，避免单个模板授权耗尽
         const sent = await sendRobust(userRes.data.openid, [
           [TMPL_ID,     { thing24: { value: unit }, thing12: { value: stepMsg }, thing10: { value: venue }, name3: { value: owner }, time27: { value: startTime } }],
           [TMPL_STATUS, { time4: { value: startTime }, thing1: { value: unit }, thing2: { value: stepMsg }, phrase3: { value: '进行中' }, thing7: { value: owner } }],
           [TMPL_CLEAN,  { time3: { value: startTime }, thing1: { value: venue }, thing2: { value: stepMsg } }],
         ], actRes.data._id);
 
+        notifyInfo.sent = !!sent;
         if (sent) {
           await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
             `上一环节「${steps[stepIndex].stepName}」已完成→「${nextStep.stepName}」`);
@@ -218,7 +227,7 @@ async function hookStepCompleted(event, openid) {
     }
   }
 
-  return { code: 0, message: '通知检查完成' };
+  return { code: 0, message: '通知检查完成', data: notifyInfo };
 }
 
 /* ========== 用户缓存 ========== */

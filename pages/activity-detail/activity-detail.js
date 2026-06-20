@@ -283,9 +283,19 @@ Page({
     this._loading = true;
     wx.showLoading({ title: '提交中...' });
     try {
-      await confirmStepDone(this.data.activityId, stepId);
+      const result = await confirmStepDone(this.data.activityId, stepId);
       wx.hideLoading();
-      wx.showToast({ title: '已确认完成', icon: 'success' });
+      // 检查通知状态，提示下一环节负责人
+      const notify = (result && result.notify) || {};
+      if (notify.reason === 'no_owner') {
+        wx.showToast({ title: '已确认，下一环节无负责人', icon: 'none', duration: 2500 });
+      } else if (notify.ownerName && !notify.ownerNotifyEnabled) {
+        wx.showToast({ title: `已确认，${notify.ownerName}未开启通知`, icon: 'none', duration: 2500 });
+      } else if (notify.sent) {
+        wx.showToast({ title: `已确认，已通知${notify.ownerName}`, icon: 'success', duration: 2500 });
+      } else {
+        wx.showToast({ title: '已确认完成', icon: 'success' });
+      }
       this.loadDetail(this.data.activityId);
     } catch (e) {
       console.error('[doConfirmStepDone] 失败:', e);
