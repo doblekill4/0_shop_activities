@@ -61,6 +61,7 @@ async function sendChangeNotification(event, openid) {
 
   const notifications = usersRes.data.map(user => ({
     userId: user._id,
+    userName: user.name,
     openid: user.openid,
     activityId,
     activityUnit: actRes.data.activityUnit || '',
@@ -71,14 +72,16 @@ async function sendChangeNotification(event, openid) {
 
   let sentCount = 0;
   if (notifications.length > 0) {
+    const steps = actRes.data.steps || [];
     for (const n of notifications) {
       await db.collection('notifications').add({ data: n });
-      // 使用活动状态变更通知模板
+      // 统计此人负责的环节数
+      const stepCount = steps.filter(s => s.ownerId === n.userId || s.ownerName === n.userName).length;
       const arrivalTime = actRes.data.arrivalTime || '';
       await sendSubscribeMsg(n.openid, {
         time4: { value: arrivalTime || (new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2,'0')) },
         thing1: { value: fit(n.activityUnit, 20) },
-        thing2: { value: fit(n.message || '活动已更新', 20) },
+        thing2: { value: stepCount > 0 ? fit(`${stepCount}个环节需留意`, 20) : fit(n.message || '活动已更新', 20) },
         phrase3: { value: '进行中' },
         thing7: { value: fit(actRes.data.bookingPerson || actRes.data.creatorName || '负责人', 20) },
       }, activityId, TMPL_STATUS);
