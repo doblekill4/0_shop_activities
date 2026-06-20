@@ -99,7 +99,8 @@ Page({
       }
 
       const ownerNames = owners.map(o => o.name);
-      const message = `活动「${activity.activityUnit || ''}」(${activity.activityDate || ''}) 有更新，请查看`;
+      const dateStr = activity.activityDate ? activity.activityDate.slice(5).replace('-','月') + '日' : '今日';
+      const message = `${dateStr}「${activity.activityUnit || ''}」有您负责的环节，请留意`;
 
       await sendChangeNotification(activityId, ownerNames, message);
       wx.showToast({ title: '通知已发送', icon: 'success' });
