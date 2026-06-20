@@ -72,45 +72,33 @@ Page({
         data: { action: 'setNotifyEnabled', enabled: false },
       }).catch(() => {});
     } else {
-      // 打开通知：先说明额度，再弹授权（必须由 tap 事件触发）
-      const doAuth = () => {
-        const user = getCurrentUser();
-        const tmplIds = [
-          'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
-          'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
-        ];
-        if (user && user.department === '保洁') {
-          tmplIds.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
-        }
-        wx.requestSubscribeMessage({
-          tmplIds,
-          success: (res) => {
-            if (tmplIds.some(id => res[id] === 'accept')) {
-              this.setData({ notifyEnabled: true });
-              // 同步 globalData
-              const app = getApp();
-              if (app.globalData.userInfo) app.globalData.userInfo.notifyEnabled = true;
-              wx.cloud.callFunction({
-                name: 'auth',
-                data: { action: 'setNotifyEnabled', enabled: true },
-              }).catch(() => {});
-              wx.showToast({ title: '已开启通知，每次授权约可接收10次', icon: 'success', duration: 2500 });
-            } else {
-              wx.showToast({ title: '需授权才能收到通知', icon: 'none' });
-            }
-          },
-          fail: () => {
-            wx.showToast({ title: '授权失败，请重试', icon: 'none' });
-          },
-        });
-      };
-
-      wx.showModal({
-        title: '开启通知授权',
-        content: '微信消息有次数限制，每次授权约可接收10次通知。多开几次页面即可自动续期。确定要开启吗？',
-        confirmText: '确定开启',
+      // 打开通知：直接从 tap 回调拉微信授权
+      const user = getCurrentUser();
+      const tmplIds = [
+        'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70',
+        'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA',
+      ];
+      if (user && user.department === '保洁') {
+        tmplIds.push('gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg');
+      }
+      wx.requestSubscribeMessage({
+        tmplIds,
         success: (res) => {
-          if (res.confirm) doAuth();
+          if (tmplIds.some(id => res[id] === 'accept')) {
+            this.setData({ notifyEnabled: true });
+            const app = getApp();
+            if (app.globalData.userInfo) app.globalData.userInfo.notifyEnabled = true;
+            wx.cloud.callFunction({
+              name: 'auth',
+              data: { action: 'setNotifyEnabled', enabled: true },
+            }).catch(() => {});
+            wx.showToast({ title: '已开启通知', icon: 'success' });
+          } else {
+            wx.showToast({ title: '需授权才能收到通知', icon: 'none' });
+          }
+        },
+        fail: () => {
+          wx.showToast({ title: '授权失败，请重试', icon: 'none' });
         },
       });
     }

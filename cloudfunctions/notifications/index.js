@@ -188,6 +188,7 @@ async function hookStepCompleted(event, openid) {
         if (sent) {
           await recordNotification(activityId, nextStep.ownerId, userRes.data.name,
             `上一环节「${steps[stepIndex].stepName}」已完成→「${nextStep.stepName}」`);
+        }
       }
     }
   }

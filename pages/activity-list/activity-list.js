@@ -428,7 +428,7 @@ Page({
 
     wx.showModal({
       title: '通知授权说明',
-      content: '微信消息有次数限制，每次授权约可接收10次通知。每次进入页面都会自动续期，多开几次即可覆盖全天需求。',
+      content: '授权后可接收活动环节通知。每次进入页面都会自动续期，建议保持开启。',
       confirmText: '确定授权',
       cancelText: '暂不',
       success: (res) => {
