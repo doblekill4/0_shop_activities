@@ -5,7 +5,7 @@ const { formatDate } = require('../../../../utils/format');
 // 文字模板（与附件1格式对应）
 const buildTextTemplate = (a) => {
   const steps = (a.steps || []).map((s, i) =>
-    `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}`
+    `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}${s.venue ? ' 📍' + s.venue : ''}`
   ).join('\n');
 
   return `按照活动模板填写：
