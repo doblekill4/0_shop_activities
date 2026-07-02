@@ -13,7 +13,10 @@ module.exports = Behavior({
   lifetimes: {
     attached() {
       var h = [];
-      for (var i = 0; i < 24; i++) h.push(String(i).padStart(2, '0'));
+      for (var i = 0; i < 24; i++) {
+        var s = String(i);
+        h.push(s.length < 2 ? '0' + s : s);
+      }
       this.setData({ timeHours: h });
     },
   },
@@ -67,7 +70,8 @@ module.exports = Behavior({
       var p = ts.split(':');
       var h = parseInt(p[0]) || 8;
       var m = parseInt(p[1]) || 0;
-      var mi = this.data.timeMinutes.indexOf(String(m).padStart(2, '0'));
+      var ms = String(m);
+      var mi = this.data.timeMinutes.indexOf(ms.length < 2 ? '0' + ms : ms);
       this.setData({
         showTimePicker: true,
         editingTimeIndex: Number(d.index),

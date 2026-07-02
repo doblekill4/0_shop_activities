@@ -143,7 +143,10 @@ module.exports = Behavior({
       var deptIdx = this._deptNames.indexOf(dept);
       if (deptIdx < 0) return [0, 0];
       var deptUsers = this._deptUserMap[dept] || [];
-      var userIdx = deptUsers.findIndex(function (u) { return u._id === user._id; });
+      var userIdx = -1;
+      for (var ui = 0; ui < deptUsers.length; ui++) {
+        if (deptUsers[ui]._id === user._id) { userIdx = ui; break; }
+      }
       return [deptIdx, userIdx >= 0 ? userIdx : 0];
     },
   },
