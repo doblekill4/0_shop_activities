@@ -5,11 +5,10 @@ const { formatDate } = require('../../../../utils/format');
 // 文字模板（与附件1格式对应）
 const buildTextTemplate = (a) => {
   const steps = (a.steps || []).map((s, i) =>
-    `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}${s.venue ? ' 📍' + s.venue : ''}`
+    `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}${s.venue ? ' 地点:' + s.venue : ''}`
   ).join('\n');
 
-  return `按照活动模板填写：
-时间：${a.activityDate}${a.arrivalTime ? ' ' + a.arrivalTime : ''}
+  return `时间：${a.activityDate}${a.arrivalTime ? ' ' + a.arrivalTime : ''}
 活动单位：${a.activityUnit}
 活动地点：${a.venue}
 活动人数：${a.peopleCount}人
@@ -35,7 +34,7 @@ ${steps}
 5.是否有现场拍摄/直播：${(a.venueNeeds||{}).filming ? '是' : '否'}
 
 发票特殊需求：${a.invoiceNeeds || ''}
-香囊账户：${a.sachetAccount === 'clinic' ? '⚠ 医馆账户' : a.sachetAccount === 'shop' ? '⚠ 零号店账户' : '未确认'}`;
+香囊账户：${a.sachetAccount === 'clinic' ? '医馆账户' : a.sachetAccount === 'shop' ? '零号店账户' : '未确认'}`;
 };
 
 Page({
