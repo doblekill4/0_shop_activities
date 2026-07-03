@@ -71,6 +71,13 @@
 }
 
 .info-item.full-width { width: 100%; }
+.info-item.date-time-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx 12rpx;
+}
+.info-label.dt-sep { margin-left: 4rpx; }
 
 .info-label { font-size: 22rpx; color: #999; }
 .info-value { font-size: 26rpx; color: #333; line-height: 1.5; }
