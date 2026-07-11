@@ -306,6 +306,10 @@ Page({
 
   async loadActivities(reset = false) {
     if (this.data.loading) return;
+    // 短时间内不重复刷新（5 秒冷却）
+    const now = Date.now();
+    if (reset && this._lastLoadTime && (now - this._lastLoadTime) < 5000) return;
+    this._lastLoadTime = now;
     this._refreshing = true;
     this.setData({ loading: true });
 

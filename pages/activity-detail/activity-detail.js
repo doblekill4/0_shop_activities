@@ -67,6 +67,10 @@ Page({
   },
 
   async loadDetail(id) {
+    // 短时间内不重复刷新（3 秒冷却）
+    const now = Date.now();
+    if (this._lastDetailLoad && (now - this._lastDetailLoad) < 3000) return;
+    this._lastDetailLoad = now;
     this.setData({ loading: true });
     try {
       const [detail, revLog] = await Promise.all([
