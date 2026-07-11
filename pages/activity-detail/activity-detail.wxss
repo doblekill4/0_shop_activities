@@ -60,8 +60,13 @@
 .info-grid {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
   gap: 16rpx 0;
+}
+
+/* 强制同行的日期/时间行 */
+.info-row {
+  display: flex;
+  width: 100%;
 }
 
 .info-item {
