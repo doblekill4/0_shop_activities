@@ -11,7 +11,7 @@ const TMPL_STATUS = 'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA';        // 活
 
 // 微信订阅消息字段长度限制
 // thing*: 20字, name*: 10字, phrase*: 5字, time*: 无限制
-function fit(v, max) { return (v || '').length > max ? (v || '').slice(0, max - 1) + '...' : (v || ''); }
+function fit(v, max) { return (v || '').length > max ? (v || '').slice(0, max - 3) + '...' : (v || ''); }
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
