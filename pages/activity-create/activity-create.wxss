@@ -182,7 +182,7 @@
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
 .section-title  { font-size: 30rpx; font-weight: 700; color: #222; margin-bottom: 20rpx; display: block; }
 
-.form-textarea { min-height: 120rpx; line-height: 1.7; }
+.form-textarea { min-height: 80rpx; line-height: 1.7; }
 
 .picker-value { color: #333; }
 .picker-value.placeholder { color: #bbb; }
