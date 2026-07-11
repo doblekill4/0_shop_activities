@@ -20,19 +20,16 @@ ${steps}
 费用合计：${a.totalCost || ''}
 活动对接人：${a.contactPerson || ''}
 活动预订人：${a.bookingPerson || ''}
-
 客户民族及宗教信仰：${(a.clientInfo||{}).ethnicity || ''}
 年龄：${(a.clientInfo||{}).age || ''}
 食物禁忌：${(a.clientInfo||{}).dietaryRestrictions || ''}
 重要客人接待需求：${(a.clientInfo||{}).specialRequirements || ''}
-
 场地需求：
 1.是否需要搭建：${(a.venueNeeds||{}).build ? '是' : '否'}
 2.是否需要预演：${(a.venueNeeds||{}).rehearsal ? '是' : '否'}
 3.是否需要接电：${(a.venueNeeds||{}).power ? '是' : '否'}
 4.是否有主视觉展示：${(a.venueNeeds||{}).mainVisual ? '是' : '否'}
 5.是否有现场拍摄/直播：${(a.venueNeeds||{}).filming ? '是' : '否'}
-
 发票特殊需求：${a.invoiceNeeds || ''}
 香囊账户：${a.sachetAccount === 'clinic' ? '医馆账户' : a.sachetAccount === 'shop' ? '零号店账户' : '未确认'}`;
 };
