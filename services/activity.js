@@ -3,13 +3,28 @@ const { callCloudFunc, uploadFile } = require('../utils/request');
 
 /**
  * 获取活动列表（默认显示所有状态，让云函数做权限过滤）
+ * 短缓存：相同条件 30 秒内复用
  */
+let _listCacheRes = null;
+let _listCacheKey = '';
+let _listCacheTime = 0;
+const _LIST_CACHE_TTL = 30000; // 30 秒
+
 const getActivityList = (params = {}) => {
+  const key = (params.filterDate || '') + '|' + (params.filterDateMode || '');
+  const now = Date.now();
+  if (_listCacheRes && _listCacheKey === key && (now - _listCacheTime) < _LIST_CACHE_TTL) {
+    return Promise.resolve(_listCacheRes);
+  }
   return callCloudFunc('activities', {
     action: 'list',
-    // 不默认传 status，让云函数根据权限返回数据
     sort: 'date_asc,first_step_asc',
     ...params,
+  }).then(res => {
+    _listCacheRes = res;
+    _listCacheKey = key;
+    _listCacheTime = now;
+    return res;
   });
 };
 

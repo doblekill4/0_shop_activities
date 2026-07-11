@@ -271,11 +271,7 @@ async function createActivity(event, openid) {
     console.error('[createActivity] 验证异常:', e);
   }
 
-  // 异步调度通知任务（不阻塞创建返回）
-  if (cleanDoc.status !== 'draft') {
-    scheduleNotificationsAsync(_id);
-  }
-
+  // 通知调度由 notifications 云函数定时器统一处理，此处不再单独触发
   return { code: 0, data: { id: _id }, message: '创建成功' };
 }
 
@@ -306,8 +302,7 @@ async function updateActivity(event, openid) {
   updateData.revisionLog = existingRevisionLog;
 
   await db.collection('activities').doc(id).update({ data: updateData });
-  // 异步调度通知任务（若状态变更可能影响通知时机）
-  scheduleNotificationsAsync(id);
+  // 通知调度由 notifications 云函数定时器统一处理，此处不再单独触发
   return { code: 0, message: '更新成功' };
 }
 
@@ -699,18 +694,6 @@ async function getFileTempURL(event) {
     console.error('[getFileTempURL] 获取临时链接失败:', e.message);
     return { code: -1, message: '获取临时链接失败: ' + (e.message || '') };
   }
-}
-
-/* ========== 异步触发通知调度（fire-and-forget） ========== */
-function scheduleNotificationsAsync(activityId) {
-  cloud.callFunction({
-    name: 'notifications',
-    data: { action: 'scheduleForActivity', activityId },
-  }).then(() => {
-    console.log('[scheduleNotificationsAsync] 调度成功:', activityId);
-  }).catch(e => {
-    console.warn('[scheduleNotificationsAsync] 调度失败:', activityId, e.message);
-  });
 }
 
 /* ========== 场地冲突检测 ========== */
