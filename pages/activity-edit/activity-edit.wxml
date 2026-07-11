@@ -130,7 +130,7 @@
       </view>
 
       <view wx:if="{{form.steps.length === 0}}" class="step-empty-tip">
-        <text>暂无环节，点击上方「＋ 添加环节」开始</text>
+        <text>暂无环节，点击右下角「＋添加环节」开始</text>
       </view>
     </view>
 

@@ -205,7 +205,7 @@
 
       <!-- 步骤为空时的提示 -->
       <view wx:if="{{form.steps.length === 0}}" class="step-empty-tip">
-        <text>暂无环节，点击上方「＋ 添加环节」开始</text>
+        <text>暂无环节，点击右下角「＋添加环节」开始</text>
       </view>
     </view>
 
@@ -346,6 +346,7 @@
   <!-- 悬浮添加环节按钮 -->
   <view class="fab-add-step" bindtap="addStep">
     <text class="fab-icon">＋</text>
+    <text class="fab-text">添加环节</text>
   </view>
 
   <!-- 自定义时间选择弹窗 -->
