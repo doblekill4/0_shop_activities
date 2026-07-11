@@ -5,7 +5,7 @@ const { formatDate } = require('../../../../utils/format');
 // 文字模板（与附件1格式对应）
 const buildTextTemplate = (a) => {
   const steps = (a.steps || []).map((s, i) =>
-    `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}${s.venue ? ' 地点:' + s.venue : ''}`
+    `${i+1}.${s.startTime}-${s.endTime} ${s.stepName}${s.venue ? ' 地点:' + s.venue : ''}${s.ownerName && s.ownerName !== '待分配' ? ' 负责人:' + s.ownerName : ''}`
   ).join('\n');
 
   return `时间：${a.activityDate}${a.arrivalTime ? ' ' + a.arrivalTime : ''}
