@@ -11,7 +11,7 @@
 ### 1. 生成密钥
 ```bash
 cd 项目根目录
-node tools/gen-api-key.js
+python tools/gen-api-key.py
 ```
 输出示例：
 ```
