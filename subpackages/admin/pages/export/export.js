@@ -2,6 +2,13 @@
 const { getActivityList, exportActivities } = require('../../../../services/activity');
 const { formatDate } = require('../../../../utils/format');
 
+const formatDateCN = (ts) => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+};
+
 // 文字模板（与附件1格式对应）
 const buildTextTemplate = (a) => {
   const steps = (a.steps || []).map((s, i) =>
@@ -82,7 +89,7 @@ Page({
       const activities = list.map(a => ({
         ...a,
         id: a._id || a.id,
-        activityDate: formatDate(a.activityDate),
+        activityDate: formatDateCN(a.activityDate),
         selected: preIds.includes(a._id || a.id),
       }));
       const selectedCount = activities.filter(a => a.selected).length;
