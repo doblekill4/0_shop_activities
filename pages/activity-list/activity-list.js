@@ -107,24 +107,8 @@ Page({
   },
 
   onSearchInput(e) {
-    const val = e.detail.value;
-    this.setData({ searchKey: val });
+    this.setData({ searchKey: e.detail.value });
     clearTimeout(this._searchTimer);
-    // 有搜索词时去掉日期限制，拉全量数据；清空搜索词时恢复默认（今天）
-    if (val && !this._searchActive) {
-      this._searchActive = true;
-      this._savedDate = this.data.filterDate;
-      this._savedDateMode = this.data.filterDateMode;
-      this.setData({ filterDate: '', filterDateMode: '' });
-      this.loadActivities(true);
-    } else if (!val && this._searchActive) {
-      this._searchActive = false;
-      this.setData({
-        filterDate: this._savedDate || '',
-        filterDateMode: this._savedDateMode || ''
-      });
-      this.loadActivities(true);
-    }
     this._searchTimer = setTimeout(() => this._applyFilters(), 300);
   },
 
@@ -324,10 +308,9 @@ Page({
   },
 
   async loadActivities(reset = false) {
-    if (this.data.loading && !this._searchActive) return;
-    // 短时间内不重复刷新（5 秒冷却），搜索时跳过冷却
+    if (this.data.loading) return;
     const now = Date.now();
-    if (reset && this._lastLoadTime && (now - this._lastLoadTime) < 5000 && !this._searchActive) return;
+    if (reset && this._lastLoadTime && (now - this._lastLoadTime) < 5000) return;
     this._lastLoadTime = now;
     this._refreshing = true;
     this.setData({ loading: true });
@@ -335,7 +318,7 @@ Page({
     try {
       const raw = await getActivityList({
         page: 1,
-        pageSize: this.data.searchKey ? 500 : PAGE_SIZE,
+        pageSize: PAGE_SIZE,
         filterDate: this.data.filterDate,
         filterDateMode: this.data.filterDateMode,
         filterStatus: this.data.filterStatus,
@@ -364,10 +347,6 @@ Page({
 
       // 统一为全量替换（避免与 _silentRefresh 冲突）
       this._allActivities = formatted;
-      // 搜索时数据量超过单次上限，提示用户缩小范围
-      if (this.data.searchKey && total > 500) {
-        wx.showToast({ title: '活动过多，建议用日期缩小范围', icon: 'none', duration: 2000 });
-      }
 
       this.setData({
         total,

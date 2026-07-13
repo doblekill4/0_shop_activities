@@ -7,7 +7,7 @@
       <text class="search-icon">🔍</text>
       <input
         class="search-input"
-        placeholder="搜索活动名称 / 单位"
+        placeholder="先确认日期再搜索单位/人名"
         value="{{searchKey}}"
         bindinput="onSearchInput"
         confirm-type="search"
