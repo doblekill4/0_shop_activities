@@ -335,7 +335,7 @@ Page({
     try {
       const raw = await getActivityList({
         page: 1,
-        pageSize: this.data.searchKey ? 200 : PAGE_SIZE,
+        pageSize: this.data.searchKey ? 500 : PAGE_SIZE,
         filterDate: this.data.filterDate,
         filterDateMode: this.data.filterDateMode,
         filterStatus: this.data.filterStatus,
@@ -364,6 +364,10 @@ Page({
 
       // 统一为全量替换（避免与 _silentRefresh 冲突）
       this._allActivities = formatted;
+      // 搜索时数据量超过单次上限，提示用户缩小范围
+      if (this.data.searchKey && total > 500) {
+        wx.showToast({ title: '活动过多，建议用日期缩小范围', icon: 'none', duration: 2000 });
+      }
 
       this.setData({
         total,
