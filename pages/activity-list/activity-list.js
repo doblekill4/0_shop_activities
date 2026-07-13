@@ -324,7 +324,7 @@ Page({
   },
 
   async loadActivities(reset = false) {
-    if (this.data.loading) return;
+    if (this.data.loading && !this._searchActive) return;
     // 短时间内不重复刷新（5 秒冷却），搜索时跳过冷却
     const now = Date.now();
     if (reset && this._lastLoadTime && (now - this._lastLoadTime) < 5000 && !this._searchActive) return;
