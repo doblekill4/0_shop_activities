@@ -107,8 +107,24 @@ Page({
   },
 
   onSearchInput(e) {
-    this.setData({ searchKey: e.detail.value });
+    const val = e.detail.value;
+    this.setData({ searchKey: val });
     clearTimeout(this._searchTimer);
+    // 有搜索词时去掉日期限制，拉全量数据；清空搜索词时恢复默认（今天）
+    if (val && !this._searchActive) {
+      this._searchActive = true;
+      this._savedDate = this.data.filterDate;
+      this._savedDateMode = this.data.filterDateMode;
+      this.setData({ filterDate: '', filterDateMode: '' });
+      this.loadActivities(true);
+    } else if (!val && this._searchActive) {
+      this._searchActive = false;
+      this.setData({
+        filterDate: this._savedDate || '',
+        filterDateMode: this._savedDateMode || ''
+      });
+      this.loadActivities(true);
+    }
     this._searchTimer = setTimeout(() => this._applyFilters(), 300);
   },
 
@@ -281,12 +297,15 @@ Page({
     const all = this._allActivities || [];
     let filtered = [...all];
 
-    // 搜索关键词：匹配单位名称和预订人
+    // 搜索关键词：匹配单位名称、预订人、地点、对接人、环节名称
     if (this.data.searchKey) {
       const kw = this.data.searchKey.toLowerCase();
       filtered = filtered.filter(a =>
-        (a.activityUnit && a.activityUnit.toLowerCase().includes(kw)) ||
-        (a.bookingPerson && a.bookingPerson.toLowerCase().includes(kw))
+        (a.activityUnit && a.activityUnit.toLowerCase().indexOf(kw) !== -1) ||
+        (a.bookingPerson && a.bookingPerson.toLowerCase().indexOf(kw) !== -1) ||
+        (a.venue && a.venue.toLowerCase().indexOf(kw) !== -1) ||
+        (a.contactPerson && a.contactPerson.toLowerCase().indexOf(kw) !== -1) ||
+        ((a.steps || []).some(function(s) { return s.stepName && s.stepName.toLowerCase().indexOf(kw) !== -1; }))
       );
     }
 
@@ -306,9 +325,9 @@ Page({
 
   async loadActivities(reset = false) {
     if (this.data.loading) return;
-    // 短时间内不重复刷新（5 秒冷却）
+    // 短时间内不重复刷新（5 秒冷却），搜索时跳过冷却
     const now = Date.now();
-    if (reset && this._lastLoadTime && (now - this._lastLoadTime) < 5000) return;
+    if (reset && this._lastLoadTime && (now - this._lastLoadTime) < 5000 && !this._searchActive) return;
     this._lastLoadTime = now;
     this._refreshing = true;
     this.setData({ loading: true });
@@ -316,7 +335,7 @@ Page({
     try {
       const raw = await getActivityList({
         page: 1,
-        pageSize: PAGE_SIZE,
+        pageSize: this.data.searchKey ? 200 : PAGE_SIZE,
         filterDate: this.data.filterDate,
         filterDateMode: this.data.filterDateMode,
         filterStatus: this.data.filterStatus,
