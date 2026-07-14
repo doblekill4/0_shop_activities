@@ -9,6 +9,9 @@ const TMPL_ID = 'XrO2RLN7upLsLT513Bwv3Pz3YCCkERUuHSFNwphej70';            // 定
 const TMPL_CLEAN = 'gw8f84WumXoZkBDaMErZ7YVDTna9P8jwosJf0bURSSg';         // 清洁任务提醒
 const TMPL_STATUS = 'vRCdbLk5V3L1OpnyPm7M5oOUWIBJIZh7jnNi6SFRfwA';        // 活动状态变更通知
 
+// 小程序发布状态（环境变量控制，默认 trial，正式发布后改为 formal）
+const MINIPROGRAM_STATE = process.env.MINIPROGRAM_STATE || 'trial';
+
 // 微信订阅消息字段长度限制
 // thing*: 20字, name*: 10字, phrase*: 5字, time*: 无限制
 function fit(v, max) { return (v || '').length > max ? (v || '').slice(0, max - 3) + '...' : (v || ''); }
@@ -505,7 +508,7 @@ async function testSend(event, openid) {
         name3: { value: '王万全' },
         time27: { value: new Date().toTimeString().slice(0, 5) },
       },
-      miniprogramState: 'formal',
+      miniprogramState: MINIPROGRAM_STATE,
     });
     return { code: 0, message: '测试通知已发送给王万全' };
   } catch (e) {
@@ -536,7 +539,7 @@ async function sendSubscribeMsg(openid, data, pageId, templateId, skipAuthCheck)
       templateId: tmplId,
       page: pageId ? `pages/activity-detail/activity-detail?id=${pageId}` : '',
       data,
-      miniprogramState: 'formal',
+      miniprogramState: MINIPROGRAM_STATE,
     });
     console.log('[sendSubscribeMsg] 发送成功:', tmplId, openid.slice(-6));
     await incrNotifyCount(openid);
@@ -561,7 +564,7 @@ async function sendRobust(openid, tmplDataPairs, pageId) {
         templateId: tmplId,
         page: pageId ? `pages/activity-detail/activity-detail?id=${pageId}` : '',
         data,
-        miniprogramState: 'formal',
+        miniprogramState: MINIPROGRAM_STATE,
       });
       console.log('[sendRobust] 发送成功:', tmplId, openid.slice(-6));
       await incrNotifyCount(openid);
