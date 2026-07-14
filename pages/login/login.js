@@ -172,6 +172,10 @@ Page({
       }
 
       const enterOptions = wx.getEnterOptionsSync ? wx.getEnterOptionsSync() : {};
+
+      // 注册前刷新登录态，确保 session_key 有效，避免 cloud.openData 群解密失败
+      await new Promise((resolve) => wx.login({ success: resolve, fail: resolve }));
+
       await login({
         name: name.trim(),
         nickname: nickname.trim() || name.trim(),
