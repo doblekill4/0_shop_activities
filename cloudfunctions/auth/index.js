@@ -185,7 +185,7 @@ async function login(event, openid) {
       // 验证群入口：解密获取 openGId，与已存储的门店群ID比对
       let verifiedStoreGroup = false;
       if (groupEncryptedData && groupIv) {
-        verifiedStoreGroup = await verifyStoreGroup(groupEncryptedData, groupIv, openid);
+        verifiedStoreGroup = await verifyStoreGroup(groupEncryptedData, groupIv, openid, name);
         console.log('[auth.login] 群验证结果:', verifiedStoreGroup);
       } else if (effectiveFromGroup && !groupEncryptedData) {
         // 体验版 fallback：scene 确认从群进但无加密数据 → 不能验证具体群，只能确认来自群
@@ -380,7 +380,7 @@ async function checkStoreGroupExists() {
 }
 
 /* ========== 验证门店群（解密 + 白名单比对） ========== */
-async function verifyStoreGroup(encryptedData, iv, openid) {
+async function verifyStoreGroup(encryptedData, iv, openid, userName) {
   try {
     // 使用 cloud.openData 解密群入口信息（利用云函数上下文中的 session key）
     const openResult = await cloud.openData({
@@ -410,21 +410,26 @@ async function verifyStoreGroup(encryptedData, iv, openid) {
     }
 
     if (!settingsRes.data || settingsRes.data.length === 0) {
-      // 第一个从群进来的人 → 自动设为门店群白名单
-      try {
-        await db.collection('settings').add({
-          data: {
-            key: 'store_group_id',
-            value: openGId,
-            createdBy: openid,
-            createdAt: db.serverDate(),
-          },
-        });
-        console.log('[verifyStoreGroup] ✅ 已自动登记门店群白名单');
-      } catch (e) {
-        console.error('[verifyStoreGroup] 存储白名单失败:', e.message);
+      // 仅管理员首次从群进入时自动设为门店群白名单
+      if (userName === '王万全') {
+        try {
+          await db.collection('settings').add({
+            data: {
+              key: 'store_group_id',
+              value: openGId,
+              createdBy: openid,
+              createdAt: db.serverDate(),
+            },
+          });
+          console.log('[verifyStoreGroup] ✅ 已自动登记门店群白名单（管理员）');
+          return true;
+        } catch (e) {
+          console.error('[verifyStoreGroup] 存储白名单失败:', e.message);
+        }
+      } else {
+        console.log('[verifyStoreGroup] ⚠ 白名单未设定，仅管理员首次从群登录可激活');
       }
-      return true;
+      return false;
     }
 
     // 比对
