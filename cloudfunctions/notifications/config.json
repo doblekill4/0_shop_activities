@@ -6,7 +6,7 @@
     {
       "name": "reminderScanner",
       "type": "timer",
-      "config": "0 0 * * * * *"
+      "config": "*/30 * * * * * *"
     }
   ]
 }

@@ -505,7 +505,7 @@ async function testSend(event, openid) {
         name3: { value: '王万全' },
         time27: { value: new Date().toTimeString().slice(0, 5) },
       },
-      miniprogramState: 'trial',
+      miniprogramState: 'formal',
     });
     return { code: 0, message: '测试通知已发送给王万全' };
   } catch (e) {
@@ -536,7 +536,7 @@ async function sendSubscribeMsg(openid, data, pageId, templateId, skipAuthCheck)
       templateId: tmplId,
       page: pageId ? `pages/activity-detail/activity-detail?id=${pageId}` : '',
       data,
-      miniprogramState: 'trial',
+      miniprogramState: 'formal',
     });
     console.log('[sendSubscribeMsg] 发送成功:', tmplId, openid.slice(-6));
     await incrNotifyCount(openid);
@@ -561,7 +561,7 @@ async function sendRobust(openid, tmplDataPairs, pageId) {
         templateId: tmplId,
         page: pageId ? `pages/activity-detail/activity-detail?id=${pageId}` : '',
         data,
-        miniprogramState: 'trial',
+        miniprogramState: 'formal',
       });
       console.log('[sendRobust] 发送成功:', tmplId, openid.slice(-6));
       await incrNotifyCount(openid);

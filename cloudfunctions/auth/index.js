@@ -25,7 +25,7 @@ exports.main = async (event, context) => {
       case 'setNotifyEnabled':
         return await setNotifyEnabled(openid, event.enabled);
       case 'resetNotifyCount':
-        return await resetNotifyCount(openid);
+        return await resetNotifyCount(openid, event.version);
       case 'listUsers':
         return await listUsers();
       case 'setUserStatus':
@@ -68,7 +68,7 @@ async function autoLogin(openid) {
           const deptRes = await db.collection('departments')
             .where({ name: user.department }).get();
           if (deptRes.data && deptRes.data.length > 0 && deptRes.data[0].permissionGroupId) {
-            const pgRes = await db.collection('permissionGroups')
+            const pgRes = await db.collection('permission_groups')
               .doc(deptRes.data[0].permissionGroupId).get();
             if (pgRes.data && Array.isArray(pgRes.data.permissions)) {
               // 合并，去重
@@ -352,12 +352,12 @@ async function setNotifyEnabled(openid, enabled) {
 }
 
 /* ========== 重置通知计数（授权成功后调用） ========== */
-async function resetNotifyCount(openid) {
+async function resetNotifyCount(openid, version) {
   try {
     await db.collection('users').where({ openid }).update({
       data: {
         notifyAuthAt: new Date(),
-        notifyAuthVersion: event.version || '',
+        notifyAuthVersion: version || '',
         notifySentCount: 0,
         notifyLastError: '',
       }
