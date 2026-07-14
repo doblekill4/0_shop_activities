@@ -417,21 +417,26 @@ async function verifyStoreGroup(encryptedData, iv, openid, userName) {
     }
 
     if (!settingsRes.data || settingsRes.data.length === 0) {
-      // 白名单未设定 → 首个从群进入的人自动登记，之后持久化，直到手动重置
-      try {
-        await db.collection('settings').add({
-          data: {
-            key: 'store_group_id',
-            value: openGId,
-            createdBy: openid,
-            createdAt: db.serverDate(),
-          },
-        });
-        console.log('[verifyStoreGroup] ✅ 已自动登记门店群白名单（首个群入口）');
-      } catch (e) {
-        console.error('[verifyStoreGroup] 存储白名单失败:', e.message);
+      // 白名单未设定 → 仅王万全从群入口可激活，之后持久化，直到手动重置
+      if (userName === '王万全') {
+        try {
+          await db.collection('settings').add({
+            data: {
+              key: 'store_group_id',
+              value: openGId,
+              createdBy: openid,
+              createdAt: db.serverDate(),
+            },
+          });
+          console.log('[verifyStoreGroup] ✅ 王万全激活门店群白名单');
+          return true;
+        } catch (e) {
+          console.error('[verifyStoreGroup] 存储白名单失败:', e.message);
+        }
+      } else {
+        console.log('[verifyStoreGroup] ⚠ 白名单未设定，仅王万全从群入口可激活');
       }
-      return true;
+      return false;
     }
 
     // 比对
