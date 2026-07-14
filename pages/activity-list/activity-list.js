@@ -315,9 +315,12 @@ Page({
     this._refreshing = true;
     this.setData({ loading: true });
 
+    // 翻页逻辑：reset 时回到第 1 页，loadMore 时递进
+    if (reset) this._page = 1;
+
     try {
       const raw = await getActivityList({
-        page: 1,
+        page: this._page || 1,
         pageSize: PAGE_SIZE,
         filterDate: this.data.filterDate,
         filterDateMode: this.data.filterDateMode,
@@ -345,12 +348,17 @@ Page({
       const cleanList = list.filter(a => !String(a._id).startsWith('_system_') && !String(a._id).startsWith('_limit_'));
       const formatted = cleanList.map(a => this._formatItem(a));
 
-      // 统一为全量替换（避免与 _silentRefresh 冲突）
-      this._allActivities = formatted;
+      // reset 时替换全量，loadMore 时追加
+      if (reset) {
+        this._allActivities = formatted;
+      } else {
+        this._allActivities = (this._allActivities || []).concat(formatted);
+      }
+      this._page = (this._page || 1) + 1;
 
       this.setData({
         total,
-        hasMore: formatted.length < total,
+        hasMore: (this._allActivities || []).length < total,
         loading: false,
       });
 
