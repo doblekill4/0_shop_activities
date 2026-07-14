@@ -192,12 +192,12 @@ async function login(event, openid) {
         console.log('[auth.login] 体验版群入口（无加密数据），scene=' + scene);
       }
 
-      // 如果门店群已登记但当前用户不从群入口进入 → 拒绝注册
-      // 提审前在"我的"页点「重置门店群白名单」暂时清掉，审核员就能进去
+      // 门店群白名单：已登记时区分员工/普通用户，不拒绝注册
       const storeGroupExists = await checkStoreGroupExists();
-      if (storeGroupExists && !effectiveFromGroup) {
-        console.log('[auth.login] 门店群已登记，非群入口注册被拒');
-        return { code: 403, message: '仅限门店群成员注册，请从群聊中打开小程序' };
+      const isFromGroup = !!effectiveFromGroup || !!verifiedStoreGroup;
+      if (storeGroupExists && !isFromGroup) {
+        console.log('[auth.login] 门店群已登记，非群入口注册 → 授予普通用户权限');
+        // 不拒绝，但角色降级为 user（需管理员手动提权）
       }
 
       // 最终角色：admin > 门店群验证通过 > user
