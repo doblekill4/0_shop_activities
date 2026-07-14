@@ -66,7 +66,13 @@ App({
     }, 5000);
 
     const { autoLogin } = require('./utils/auth');
-    autoLogin().then(user => {
+    // 收集群入口信息（用于设定门店群白名单）
+    const groupInfo = wx.getGroupEnterInfo ? wx.getGroupEnterInfo() : null;
+    const groupParams = (groupInfo && groupInfo.encryptedData) ? {
+      groupEncryptedData: groupInfo.encryptedData,
+      groupIv: groupInfo.iv,
+    } : {};
+    autoLogin(groupParams).then(user => {
       if (finished) return;
       finished = true;
       clearTimeout(timer);

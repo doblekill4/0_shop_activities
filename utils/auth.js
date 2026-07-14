@@ -78,7 +78,7 @@ const login = (data = {}) => {
 /**
  * 自动登录（检查是否已注册）
  */
-const autoLogin = () => {
+const autoLogin = (extraData = {}) => {
   return new Promise((resolve, reject) => {
     // ---- 本地备用模式 ----
     if (!USE_CLOUD) {
@@ -116,7 +116,7 @@ const autoLogin = () => {
     // ---- 云函数模式 ----
     wx.cloud.callFunction({
       name: 'auth',
-      data: { action: 'autoLogin' },
+      data: { action: 'autoLogin', ...extraData },
       success: (res) => {
         console.log('[auth.autoLogin] 云函数返回', res);
         const result = res.result;

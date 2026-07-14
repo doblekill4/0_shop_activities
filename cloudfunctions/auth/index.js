@@ -13,7 +13,7 @@ exports.main = async (event, context) => {
   try {
     switch (action) {
       case 'autoLogin':
-        return await autoLogin(openid);
+        return await autoLogin(openid, event);
       case 'login':
         return await login(event, openid);
       case 'listDepartments':
@@ -40,8 +40,15 @@ exports.main = async (event, context) => {
 };
 
 /* ========== 自动登录（检查是否已注册） ========== */
-async function autoLogin(openid) {
+async function autoLogin(openid, event = {}) {
   try {
+    // 已注册用户从群入口打开时，尝试设定/刷新白名单
+    const storeGroupExists = await checkStoreGroupExists();
+    if (!storeGroupExists && event.groupEncryptedData && event.groupIv) {
+      console.log('[autoLogin] 白名单未设定，尝试从群入口登记');
+      await verifyStoreGroup(event.groupEncryptedData, event.groupIv, openid, '');
+    }
+
     const res = await db.collection('users').where({ openid }).get();
     if (res.data && res.data.length > 0) {
       const user = res.data[0];
@@ -410,26 +417,21 @@ async function verifyStoreGroup(encryptedData, iv, openid, userName) {
     }
 
     if (!settingsRes.data || settingsRes.data.length === 0) {
-      // 仅管理员首次从群进入时自动设为门店群白名单
-      if (userName === '王万全') {
-        try {
-          await db.collection('settings').add({
-            data: {
-              key: 'store_group_id',
-              value: openGId,
-              createdBy: openid,
-              createdAt: db.serverDate(),
-            },
-          });
-          console.log('[verifyStoreGroup] ✅ 已自动登记门店群白名单（管理员）');
-          return true;
-        } catch (e) {
-          console.error('[verifyStoreGroup] 存储白名单失败:', e.message);
-        }
-      } else {
-        console.log('[verifyStoreGroup] ⚠ 白名单未设定，仅管理员首次从群登录可激活');
+      // 白名单未设定 → 首个从群进入的人自动登记，之后持久化，直到手动重置
+      try {
+        await db.collection('settings').add({
+          data: {
+            key: 'store_group_id',
+            value: openGId,
+            createdBy: openid,
+            createdAt: db.serverDate(),
+          },
+        });
+        console.log('[verifyStoreGroup] ✅ 已自动登记门店群白名单（首个群入口）');
+      } catch (e) {
+        console.error('[verifyStoreGroup] 存储白名单失败:', e.message);
       }
-      return false;
+      return true;
     }
 
     // 比对
