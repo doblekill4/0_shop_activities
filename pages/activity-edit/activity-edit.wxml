@@ -51,8 +51,8 @@
 
       <view class="form-item">
         <text class="form-label">业务体现</text>
-        <input class="form-input" value="{{form.businessType}}"
-          bindinput="onInput" data-field="businessType" />
+        <textarea class="form-input form-textarea" value="{{form.businessType}}"
+          bindinput="onInput" data-field="businessType" auto-height />
       </view>
 
       <view class="form-item">

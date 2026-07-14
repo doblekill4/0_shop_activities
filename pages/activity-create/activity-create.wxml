@@ -114,8 +114,8 @@
 
       <view class="form-item">
         <text class="form-label">业务体现</text>
-        <input class="form-input" placeholder="如：58元品鉴、伴手礼、用餐"
-          value="{{form.businessType}}" bindinput="onInput" data-field="businessType" />
+        <textarea class="form-input form-textarea" placeholder="如：58元品鉴、伴手礼、用餐"
+          value="{{form.businessType}}" bindinput="onInput" data-field="businessType" auto-height />
       </view>
 
       <view class="form-item">
