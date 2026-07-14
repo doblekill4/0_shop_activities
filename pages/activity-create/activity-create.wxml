@@ -261,7 +261,7 @@
         <text class="form-label">重要客人接待需求</text>
         <textarea class="form-input form-textarea" placeholder="请填写特殊接待要求"
           value="{{form.clientInfo.specialRequirements}}" bindinput="onClientInput"
-          data-field="specialRequirements" auto-height />
+          data-field="specialRequirements" auto-height maxlength="-1" />
       </view>
     </view>
 

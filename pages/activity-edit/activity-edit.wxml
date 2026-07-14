@@ -181,7 +181,7 @@
       <view class="form-item">
         <text class="form-label">重要接待需求</text>
         <textarea class="form-input form-textarea" value="{{form.clientInfo.specialRequirements}}"
-          bindinput="onClientInput" data-field="specialRequirements" auto-height />
+          bindinput="onClientInput" data-field="specialRequirements" auto-height maxlength="-1" />
       </view>
     </view>
 
