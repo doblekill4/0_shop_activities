@@ -5,7 +5,14 @@
 - 云开发环境 ID: `cloud1-6gxw5t089a5cfdce`
 - ICP 备案已通过
 - 微信 AppID: `wx48dc1d4e69e6c3aa`
-- 当前版本: `0.2.6beta`（`app.js` 的 `appVersion` 统一管理，改一处全局同步）
+- 当前版本: `1.0.0`（`app.js` 的 `appVersion` 统一管理）
+
+## ⚠️ 发布后必做
+正式版发布后，在云开发控制台 → `notifications` 云函数 → 环境变量添加：
+```
+MINIPROGRAM_STATE = formal
+```
+默认 `trial`（体验版）。不设此变量通知用户点了跳不过来。
 
 ## 共享模块架构（防止 create/edit 同步遗漏）
 - `utils/constants.js` — VENUE_LIST, VENUE_ALIASES, matchStepVenue, SUBSCRIBE_TMPL_IDS
