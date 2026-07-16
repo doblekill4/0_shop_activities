@@ -20,6 +20,8 @@ exports.main = async (event, context) => {
         return await listDepartments();
       case 'getPublicUserList':
         return await getPublicUserList();
+      case 'activateStoreGroup':
+        return await activateStoreGroup(openid);
       case 'resetStoreGroup':
         return await resetStoreGroup(openid);
       case 'setNotifyEnabled':
@@ -293,6 +295,33 @@ async function getPublicUserList() {
   }
 }
 
+/* ========== 手动激活门店群白名单（体验版/环境受限时兜底） ========== */
+async function activateStoreGroup(openid) {
+  try {
+    const userRes = await db.collection('users').where({ openid }).get();
+    const user = userRes.data && userRes.data[0];
+    if (!user || user.name !== '王万全') {
+      return { code: 403, message: '仅王万全可操作' };
+    }
+    const exist = await db.collection('settings').where({ key: 'store_group_id' }).get();
+    if (exist.data && exist.data.length > 0) {
+      return { code: 0, message: '白名单已存在，无需重复激活' };
+    }
+    await db.collection('settings').add({
+      data: {
+        key: 'store_group_id',
+        value: 'manual_activated',
+        createdBy: openid,
+        createdAt: db.serverDate(),
+      },
+    });
+    console.log('[activateStoreGroup] 手动激活白名单（value=manual_activated）');
+    return { code: 0, message: '已激活，群密码比对降级为放行' };
+  } catch (e) {
+    return { code: -1, message: '激活失败：' + (e.message || '') };
+  }
+}
+
 /* ========== 重置门店群白名单（管理员操作） ========== */
 async function resetStoreGroup(openid) {
   try {
@@ -441,6 +470,11 @@ async function verifyStoreGroup(encryptedData, iv, openid, userName) {
 
     // 比对
     const stored = settingsRes.data[0].value;
+    // 手动激活模式：不比对群ID，直接放行（体验版/环境受限兜底）
+    if (stored === 'manual_activated') {
+      console.log('[verifyStoreGroup] 手动激活模式，跳过群ID比对');
+      return true;
+    }
     const match = stored === openGId;
     console.log('[verifyStoreGroup] 比对:', match ? '✅ 匹配' : '❌ 不匹配',
       ', 期望:', stored, ', 实际:', openGId);

@@ -170,6 +170,31 @@ Page({
     wx.navigateTo({ url: '/subpackages/admin/pages/user-manage/user-manage' });
   },
 
+  activateStoreGroup() {
+    wx.showModal({
+      title: '激活门店群白名单',
+      content: '手动激活后，仅群聊入口才可注册。审核前记得关闭。',
+      confirmColor: '#2E7D32',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '激活中...' });
+        wx.cloud.callFunction({
+          name: 'auth',
+          data: { action: 'activateStoreGroup' },
+          success: (result) => {
+            wx.hideLoading();
+            const r = result.result || {};
+            wx.showToast({ title: r.code === 0 ? '已激活' : ('失败：' + (r.message || '')), icon: r.code === 0 ? 'success' : 'none' });
+          },
+          fail: (err) => {
+            wx.hideLoading();
+            wx.showToast({ title: '激活失败：' + (err.errMsg || ''), icon: 'none', duration: 3000 });
+          },
+        });
+      },
+    });
+  },
+
   resetStoreGroup() {
     wx.showModal({
       title: '重置门店群白名单',

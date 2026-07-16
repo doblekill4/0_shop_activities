@@ -59,6 +59,11 @@
           <text class="menu-label">员工管理</text>
           <text class="menu-arrow">›</text>
         </view>
+        <view class="menu-item" bindtap="activateStoreGroup" wx:if="{{userInfo.name === '王万全'}}">
+          <text class="menu-icon">🔒</text>
+          <text class="menu-label">激活门店群白名单</text>
+          <text class="menu-val">体验版手动</text>
+        </view>
         <view class="menu-item" bindtap="resetStoreGroup" wx:if="{{userInfo.name === '王万全'}}">
           <text class="menu-icon">🔄</text>
           <text class="menu-label">重置门店群白名单</text>
