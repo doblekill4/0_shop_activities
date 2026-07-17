@@ -8,7 +8,7 @@
     </view>
     <view class="login-brand">
       <text class="brand-name">知嘛健康零号店</text>
-      <text class="brand-desc">活动预定管理系统</text>
+      <text class="brand-desc">内部员工管理 · 非公开小程序</text>
     </view>
 
     <view class="login-card">
@@ -16,7 +16,7 @@
       <text class="card-title">授权登录</text>
       <text class="card-desc">授权获取你的微信信息，用于活动管理和身份识别</text>
 
-      <text class="internal-notice">内部店铺管理工具，仅供授权员工使用</text>
+      <text class="internal-notice">非公开小程序，仅限店铺内部员工经管理员授权后使用</text>
       <button class="btn-auth" bindtap="handleAuth" loading="{{loading}}">
         <text wx:if="{{!loading}}">微信授权登录</text>
         <text wx:else>授权中...</text>
