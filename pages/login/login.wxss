@@ -82,6 +82,14 @@
   margin-bottom: 48rpx;
 }
 
+.internal-notice {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
 .btn-auth {
   width: 100%;
   background: #07C160;
