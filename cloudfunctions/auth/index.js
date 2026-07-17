@@ -315,7 +315,12 @@ async function activateStoreGroup(openid) {
     if (!user || user.name !== '王万全') {
       return { code: 403, message: '仅王万全可操作' };
     }
-    const exist = await db.collection('settings').where({ key: 'store_group_id' }).get();
+    let exist = { data: [] };
+    try {
+      exist = await db.collection('settings').where({ key: 'store_group_id' }).get();
+    } catch (e) {
+      if (!String(e.message || '').includes('not exists')) throw e;
+    }
     if (exist.data && exist.data.length > 0) {
       return { code: 0, message: '白名单已存在，无需重复激活' };
     }
