@@ -46,8 +46,11 @@ Page({
     try {
       const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'checkReviewMode' } });
       const data = (res.result || {}).data || {};
-      this.setData({ reviewMode: !!data.reviewMode });
-    } catch (e) { /* 忽略，默认不显示 */ }
+      if (data.reviewMode) {
+        wx.setStorageSync('reviewMode', true);
+        this.setData({ reviewMode: true });
+      }
+    } catch (e) { /* 忽略 */ }
   },
 
   // ===== 获取部门列表 =====

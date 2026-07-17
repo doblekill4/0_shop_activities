@@ -17,6 +17,8 @@ Component({
 
   methods: {
     _check() {
+      // 审核模式不弹任何通知授权
+      if (wx.getStorageSync('reviewMode')) { this.setData({ visible: false }); return; }
       const app = getApp();
       const user = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
       // 版本不匹配（包括从未授权过）→ 显示浮层 + 自动关闭通知开关

@@ -96,6 +96,7 @@ async function autoLogin(openid, event = {}) {
       return {
         code: 0,
         data: {
+          reviewMode: REVIEW_MODE,
           userInfo: {
             _id: user._id,
             openid: user.openid || openid,
@@ -112,7 +113,7 @@ async function autoLogin(openid, event = {}) {
         message: 'success',
       };
     }
-    return { code: 401, message: '未登录' };
+    return { code: 401, message: '未登录', data: { reviewMode: REVIEW_MODE } };
   } catch (e) {
     console.error('[auth.autoLogin] 数据库错误', e);
     return { code: 401, message: '未登录（数据库异常：' + e.message + '）' };

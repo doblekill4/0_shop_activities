@@ -123,12 +123,16 @@ const autoLogin = (extraData = {}) => {
         if (result && result.code === 0) {
           const user = result.data.userInfo;
           wx.setStorageSync('userInfo', user);
+          // 审核模式标记
+          if (result.data.reviewMode) {
+            wx.setStorageSync('reviewMode', true);
+          }
           const app = getApp();
           app.globalData.isLoggedIn = true;
           app.globalData.userInfo = user;
           resolve(user);
         } else {
-          resolve(null);  // 未登录，不是错误
+          resolve(null);
         }
       },
       fail: (err) => {

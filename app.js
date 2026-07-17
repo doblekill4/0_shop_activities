@@ -79,6 +79,7 @@ App({
       if (user) {
         self.globalData.isLoggedIn = true;
         self.globalData.userInfo = user;
+        // 审核模式下关闭通知弹窗（存 result.reviewMode）
         console.log('[App] autoLogin 成功：', user.name);
       } else {
         console.log('[App] autoLogin：未登录，需要手动登录');
