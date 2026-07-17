@@ -123,9 +123,11 @@ const autoLogin = (extraData = {}) => {
         if (result && result.code === 0) {
           const user = result.data.userInfo;
           wx.setStorageSync('userInfo', user);
-          // 审核模式标记
+          // 审核模式标记（同步云端状态）
           if (result.data.reviewMode) {
             wx.setStorageSync('reviewMode', true);
+          } else {
+            wx.removeStorageSync('reviewMode');
           }
           const app = getApp();
           app.globalData.isLoggedIn = true;
