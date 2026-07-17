@@ -44,12 +44,14 @@ Page({
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         this._initMultiSelector(today);
+        // 审核模式下默认显示全部活动
+        const isReview = wx.getStorageSync('reviewMode');
         this.setData({
           canCreate: hasPermission('create_activity'),
           showRegister: false,
-          filterDate: todayStr,
-          filterDateMode: 'today',
-          filterDateLabel: '今天',
+          filterDate: isReview ? '' : todayStr,
+          filterDateMode: isReview ? '' : 'today',
+          filterDateLabel: isReview ? '📅 选择日期' : '今天',
         });
         this.loadActivities(true);
       }
