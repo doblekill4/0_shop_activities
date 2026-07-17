@@ -6,17 +6,19 @@ Page({
   data: {
     step: 'auth',       // 'auth' | 'profile'
     loading: false,
+    reviewLoading: false,
+    reviewMode: false,  // 审核模式快捷入口
     saving: false,
-    isEmployee: false,  // 是否从门店群进入（自动识别为员工）
-    fromGroup: false,   // 是否从群聊入口进入
+    isEmployee: false,
+    fromGroup: false,
     avatarUrl: '',
     nickname: '',
     name: '',
-    employeeId: '',     // 工号
+    employeeId: '',
     department: '',
-    departmentIndex: -1,    // picker 选中索引
-    departmentList: [],     // 可选部门列表
-    departmentNames: [],    // 部门名称数组（picker range）
+    departmentIndex: -1,
+    departmentList: [],
+    departmentNames: [],
   },
 
   onLoad() {
@@ -33,9 +35,19 @@ Page({
       }
       this._loadDepartments();
       this._checkGroupEntry();
+      this._checkReviewMode();
     } else {
       setTimeout(() => this._waitForLoginReady(), 100);
     }
+  },
+
+  // 检测审核模式
+  async _checkReviewMode() {
+    try {
+      const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'checkReviewMode' } });
+      const data = (res.result || {}).data || {};
+      this.setData({ reviewMode: !!data.reviewMode });
+    } catch (e) { /* 忽略，默认不显示 */ }
   },
 
   // ===== 获取部门列表 =====
@@ -198,5 +210,18 @@ Page({
 
   _enterApp() {
     wx.switchTab({ url: '/pages/activity-list/activity-list' });
+  },
+
+  // 审核快捷登录
+  async reviewQuickLogin() {
+    if (this.data.reviewLoading) return;
+    this.setData({ reviewLoading: true });
+    try {
+      await login({ name: '审核测试', nickname: '审核测试', department: '管理部' });
+      this._enterApp();
+    } catch (e) {
+      wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+    }
+    this.setData({ reviewLoading: false });
   },
 });

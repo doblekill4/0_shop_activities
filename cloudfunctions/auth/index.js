@@ -3,6 +3,9 @@ const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 
+// 审核模式：跳过门店群白名单，允许任意用户注册（上线后关闭）
+const REVIEW_MODE = process.env.REVIEW_MODE === 'true';
+
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
   const openid = wxContext.OPENID;
@@ -14,6 +17,8 @@ exports.main = async (event, context) => {
     switch (action) {
       case 'autoLogin':
         return await autoLogin(openid, event);
+      case 'checkReviewMode':
+        return { code: 0, data: { reviewMode: REVIEW_MODE }, message: 'ok' };
       case 'login':
         return await login(event, openid);
       case 'listDepartments':
@@ -201,11 +206,13 @@ async function login(event, openid) {
         console.log('[auth.login] 体验版群入口（无加密数据），scene=' + scene);
       }
 
-      // 门店群白名单拦截：已登记时，非群入口拒绝注册
-      const storeGroupExists = await checkStoreGroupExists();
-      if (storeGroupExists && !effectiveFromGroup) {
-        console.log('[auth.login] 门店群已登记，非群入口注册被拒');
-        return { code: 403, message: '仅限门店群成员注册，请从群聊中打开小程序' };
+      // 门店群白名单拦截：审核模式下跳过
+      if (!REVIEW_MODE) {
+        const storeGroupExists = await checkStoreGroupExists();
+        if (storeGroupExists && !effectiveFromGroup) {
+          console.log('[auth.login] 门店群已登记，非群入口注册被拒');
+          return { code: 403, message: '仅限门店群成员注册，请从群聊中打开小程序' };
+        }
       }
 
       // 最终角色：admin > 门店群验证通过 > user
