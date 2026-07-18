@@ -144,13 +144,11 @@ async function login(event, openid) {
       // 已存在：更新登录信息
       const user = existRes.data[0];
 
-      // 审核测试号：专用通道放行，正常入口一律 402
-      if (user.name === '审核测试') {
-        if (!event._review) {
-          console.log('[auth.login] 审核测试号拒绝正常入口登录');
-          return { code: 402, message: '请使用审核快捷通道登录' };
-        }
-        console.log('[auth.login] 审核测试号专用通道登录');
+      // 审核测试号：专用通道放行，正常入口无名字→402
+      const reviewReclaim = user.name === '审核测试' && !event._review && name;
+      if (user.name === '审核测试' && !event._review && !name) {
+        console.log('[auth.login] 审核测试号拒绝正常入口登录');
+        return { code: 402, message: '请使用审核快捷通道登录' };
       }
 
       // 只有王万全可以自动升级为管理员
@@ -178,14 +176,15 @@ async function login(event, openid) {
           ],
         } : {}),
       };
-      // 已存在用户：仅首次注册时设置这些字段，登录时跳过（防审核快捷入口覆盖）
-      if (!user.lastLoginAt) {
+      // 已存在用户：仅首次注册时设置，登录时跳过（防审核快捷入口覆盖）
+      if (!user.lastLoginAt || reviewReclaim) {
         if (name) updateData.name = name;
         if (department) updateData.department = department;
         if (nickname) updateData.nickname = nickname;
         if (avatarUrl) updateData.avatarUrl = avatarUrl;
         if (employeeId) updateData.employeeId = employeeId;
       }
+      if (reviewReclaim) console.log('[auth.login] 审核测试号收回 →', name);
 
       await db.collection('users').doc(user._id).update({ data: updateData });
 
