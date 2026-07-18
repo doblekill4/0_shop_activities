@@ -122,7 +122,7 @@
           </view>
           <view class="notify-status-row error" wx:if="{{notifyLastError}}">
             <text class="ns-label">最近错误</text>
-            <text class="ns-value">{{notifyLastError}}</text>
+            <text class="ns-value" selectable="true">{{notifyLastError}}</text>
           </view>
         </view>
       </view>
