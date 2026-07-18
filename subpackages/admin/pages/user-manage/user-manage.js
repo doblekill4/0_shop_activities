@@ -6,6 +6,7 @@ Page({
 
   onShow() {
     if (!isAdmin()) { wx.navigateBack(); return; }
+    wx.showLoading({ title: '加载中...' });
     this.loadUsers();
   },
 
@@ -17,6 +18,7 @@ Page({
     } catch (e) {
       wx.showToast({ title: '加载失败', icon: 'none' });
     }
+    wx.hideLoading();
   },
 
   toggleStatus(e) {

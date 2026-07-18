@@ -19,6 +19,7 @@ Page({
 
   async onLoad() {
     wx.setNavigationBarTitle({ title: '通知配置' });
+    wx.showLoading({ title: '加载中...' });
     try {
       const [deptRes, userRes] = await Promise.all([getDepartments(), getUsers()]);
       this.setData({
@@ -38,11 +39,13 @@ Page({
       if (cloudRes.result && cloudRes.result.code === 0 && cloudRes.result.data.length > 0) {
         this.setData({ rules: cloudRes.result.data });
         wx.setStorageSync('notification_rules', cloudRes.result.data);
+        wx.hideLoading();
         return;
       }
     } catch (e) { /* 云端加载失败，用本地缓存 */ }
     const saved = wx.getStorageSync('notification_rules');
     if (saved && saved.length) this.setData({ rules: saved });
+    wx.hideLoading();
   },
 
   addRule() {
