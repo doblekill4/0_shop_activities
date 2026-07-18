@@ -303,18 +303,36 @@ async function scheduleForActivity(event) {
     const targets = rule.targets || [];
 
     if (rule.timingIndex === 0) {
-      // 「活动开始前 N 分钟」通知指定人员
+      // 「活动开始前 N 分钟」通知指定人员，或自动取第一个有负责人的环节
       const triggerAt = new Date(activityStart.getTime() - (rule.minutes || 30) * 60000);
-      for (const t of targets) {
-        const user = userCache[t.name];
-        if (!user || !user.openid) continue;
-        tasks.push(createTask(activityId, user, {
-          thing24: { value: fit(act.activityUnit, 20) },
-          thing12: { value: fit(`${rule.minutes || 30}分钟后开始`, 20) },
-          thing10: { value: fit(act.venue, 20) },
-          name3: { value: fit(user.name || act.creatorName, 10) },
-          time27: { value: arrivalTime || act.activityDate || '' },
-        }, triggerAt));
+      if (targets.length > 0) {
+        for (const t of targets) {
+          const user = userCache[t.name];
+          if (!user || !user.openid) continue;
+          tasks.push(createTask(activityId, user, {
+            thing24: { value: fit(act.activityUnit, 20) },
+            thing12: { value: fit(`${rule.minutes || 30}分钟后开始`, 20) },
+            thing10: { value: fit(act.venue, 20) },
+            name3: { value: fit(user.name || act.creatorName, 10) },
+            time27: { value: arrivalTime || act.activityDate || '' },
+          }, triggerAt));
+        }
+      } else {
+        // 无指定人员 → 自动取第一个有负责人的环节，顺延跳过无负责人的
+        for (let si = 0; si < steps.length; si++) {
+          const step = steps[si];
+          if (!step.ownerId || step.ownerId === '__pending__') continue;
+          const user = userCache[step.ownerId];
+          if (!user || !user.openid) continue;
+          tasks.push(createTask(activityId, user, {
+            thing24: { value: fit(act.activityUnit, 20) },
+            thing12: { value: fit(`${rule.minutes || 30}分钟后「${step.stepName || ''}」开始`, 20) },
+            thing10: { value: fit(act.venue, 20) },
+            name3: { value: fit(step.ownerName || user.name, 10) },
+            time27: { value: step.startTime || arrivalTime || '' },
+          }, triggerAt));
+          break; // 只通知第一个有负责人的环节
+        }
       }
     } else if (rule.timingIndex === 1) {
       // 「活动结束后 N 分钟」通知指定人员
