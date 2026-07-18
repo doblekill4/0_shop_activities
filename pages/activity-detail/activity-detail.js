@@ -44,6 +44,8 @@ Page({
     canManageVoucher: false,  // 只有创建人可以上传/删除凭证
     isAdmin: false,
     loading: true,
+    stepToastVisible: false,
+    stepToastMsg: '',
   },
 
   onLoad(options) {
@@ -287,15 +289,16 @@ Page({
       wx.hideLoading();
       // 检查通知状态，提示下一环节负责人
       const notify = (result && result.notify) || {};
+      var toastMsg = '已确认完成';
       if (notify.reason === 'no_owner') {
-        wx.showToast({ title: '已确认，下一环节无负责人', icon: 'none', duration: 2500 });
+        toastMsg = '已确认，下一环节无负责人';
       } else if (notify.ownerName && !notify.ownerNotifyEnabled) {
-        wx.showToast({ title: `已确认，${notify.ownerName}未开启通知`, icon: 'none', duration: 2500 });
+        toastMsg = '已确认，' + notify.ownerName + '未开启通知';
       } else if (notify.sent) {
-        wx.showToast({ title: `已确认，已通知${notify.ownerName}`, icon: 'success', duration: 2500 });
-      } else {
-        wx.showToast({ title: '已确认完成', icon: 'success' });
+        toastMsg = '已确认，已通知' + notify.ownerName;
       }
+      this.setData({ stepToastVisible: true, stepToastMsg: toastMsg });
+      setTimeout(() => this.setData({ stepToastVisible: false }), 2000);
       this.loadDetail(this.data.activityId);
     } catch (e) {
       console.error('[doConfirmStepDone] 失败:', e);

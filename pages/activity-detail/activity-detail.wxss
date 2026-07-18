@@ -332,3 +332,19 @@
 .tag-settled   { background: #F3E5F5; color: #7B1FA2; padding: 4rpx 16rpx; border-radius: 12rpx; font-size: 22rpx; }
 
 .step-venue { font-size: 20rpx; color: #1565C0; background: #E3F2FD; padding: 2rpx 10rpx; border-radius: 6rpx; margin-right: 8rpx; }
+
+/* 环节确认结果渐隐提示 */
+.step-toast {
+  position: fixed;
+  top: 200rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.78);
+  padding: 20rpx 36rpx;
+  border-radius: 16rpx;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 400;
+}
+.step-toast.show { opacity: 1; }
+.step-toast-text { font-size: 28rpx; color: #fff; }

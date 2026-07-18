@@ -261,4 +261,8 @@
   </scroll-view>
   <notify-overlay />
 
+  <!-- 环节确认结果渐隐提示 -->
+  <view class="step-toast {{stepToastVisible ? 'show' : ''}}" wx:if="{{stepToastVisible}}">
+    <text class="step-toast-text">{{stepToastMsg}}</text>
+  </view>
 </view>
