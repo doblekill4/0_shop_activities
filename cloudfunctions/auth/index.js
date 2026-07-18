@@ -59,6 +59,11 @@ async function autoLogin(openid, event = {}) {
     const res = await db.collection('users').where({ openid }).get();
     if (res.data && res.data.length > 0) {
       const user = res.data[0];
+      // 审核模式关闭后，清退审核测试账号
+      if (!REVIEW_MODE && user.name === '审核测试') {
+        console.log('[autoLogin] 审核模式已关闭，拒绝审核测试账号');
+        return { code: 401, message: '审核已结束，不再允许测试登录' };
+      }
       // 合并部门关联的权限组权限
       let permissions = user.permissions || [];
       // 为现有管理员自动补全新增权限
@@ -221,14 +226,12 @@ async function login(event, openid) {
           console.log('[auth.login] 门店群已登记，非群入口注册被拒');
           return { code: 403, message: '仅限门店群成员注册，请从群聊中打开小程序' };
         }
-      } else if (name !== '审核测试') {
-        // 审核模式下仅允许「审核测试」账号注册，防正常登录绕过
-        console.log('[auth.login] 审核模式拒绝非审核账号:', name);
-        return { code: 403, message: '审核模式仅限快捷通道登录' };
       }
 
-      // 最终角色：admin > 门店群验证通过 > user
+      // 最终角色：审核测试→admin，其余不变
+      const fromReview = REVIEW_MODE && name === '审核测试';
       const finalRole = isAdmin ? 'admin'
+        : fromReview ? 'admin'
         : verifiedStoreGroup ? 'employee'
         : 'user';
 

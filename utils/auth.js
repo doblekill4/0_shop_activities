@@ -134,6 +134,11 @@ const autoLogin = (extraData = {}) => {
           app.globalData.userInfo = user;
           resolve(user);
         } else {
+          // 审核模式关闭后清退，清掉旧 Storage
+          if (result && result.code === 401) {
+            wx.removeStorageSync('userInfo');
+            wx.removeStorageSync('reviewMode');
+          }
           resolve(null);
         }
       },
