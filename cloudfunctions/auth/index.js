@@ -144,8 +144,11 @@ async function login(event, openid) {
       // 已存在：更新登录信息
       const user = existRes.data[0];
 
-      // 审核模式仅用于跳过白名单，不阻塞任何入口
-      // 正常入口的前端会在 handleAuth 中清理 userReview 标志重置缓存
+      // 审核测试号被正常入口空名调用 → 402 强制填真名（账号持有人自行收回）
+      if (user.name === '审核测试' && !name) {
+        console.log('[auth.login] 审核测试号需要填写真实姓名');
+        return { code: 402, message: '请填写真实姓名重新授权' };
+      }
 
       // 只有王万全可以自动升级为管理员
       let needUpgrade = false;
@@ -179,6 +182,11 @@ async function login(event, openid) {
         if (nickname) updateData.nickname = nickname;
         if (avatarUrl) updateData.avatarUrl = avatarUrl;
         if (employeeId) updateData.employeeId = employeeId;
+      }
+      // 审核测试号持有人填了真名 → 允许收回账号
+      if (user.name === '审核测试' && name && name !== '审核测试') {
+        updateData.name = name;
+        console.log('[auth.login] 审核测试号收回 →', name);
       }
 
       await db.collection('users').doc(user._id).update({ data: updateData });

@@ -181,6 +181,7 @@ const isAdmin = () => {
  */
 const logout = () => {
   wx.removeStorageSync('userInfo');
+  wx.removeStorageSync('userReview');
   const app = getApp();
   app.globalData.isLoggedIn = false;
   app.globalData.userInfo = null;
