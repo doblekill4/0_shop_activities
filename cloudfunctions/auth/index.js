@@ -144,6 +144,12 @@ async function login(event, openid) {
       // 已存在：更新登录信息
       const user = existRes.data[0];
 
+      // 审核模式下，审核测试号仅允许走快捷通道；正常登录入口不允许复用
+      if (REVIEW_MODE && user.name === '审核测试' && name !== '审核测试') {
+        console.log('[auth.login] 审核模式下正常入口拒绝复用审核测试号');
+        return { code: 402, message: '请使用审核快捷通道，或注册自己的账号' };
+      }
+
       // 只有王万全可以自动升级为管理员
       let needUpgrade = false;
       if (user.name === '王万全' && user.role !== 'admin') {
