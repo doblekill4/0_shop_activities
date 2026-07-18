@@ -43,6 +43,7 @@ Page({
   },
 
   async _reload() {
+    wx.showLoading({ title: '加载中...' });
     try {
       var deptRes, userRes, permRes;
       var arr = await Promise.all([
@@ -78,6 +79,7 @@ Page({
     } catch (e) {
       wx.showToast({ title: "加载失败", icon: 'none' });
     }
+    wx.hideLoading();
   },
 
   addDept: function() {

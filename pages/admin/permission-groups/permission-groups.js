@@ -85,6 +85,7 @@ Page({
   async _reload() {
     if (this._loading) return;
     this._loading = true;
+    wx.showLoading({ title: '加载中...' });
     try {
       const [gRes, uRes] = await Promise.all([getPermissionGroups(), getUsers()]);
       const groups   = Array.isArray(gRes) ? gRes : ((gRes && gRes.data) || []);
@@ -113,6 +114,7 @@ Page({
     } catch (e) {
       wx.showToast({ title: "加载失败", icon: 'none' });
     } finally {
+      wx.hideLoading();
       this._loading = false;
     }
   },
