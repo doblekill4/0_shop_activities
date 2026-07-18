@@ -67,11 +67,6 @@ Page({
   },
 
   async loadDetail(id) {
-    // 短时间内不重复刷新（3 秒冷却），上传完成后强制刷新
-    const now = Date.now();
-    if (this._lastDetailLoad && (now - this._lastDetailLoad) < 3000 && !this._forceRefresh) return;
-    this._lastDetailLoad = now;
-    this._forceRefresh = false;
     this.setData({ loading: true });
     try {
       const [detail, revLog] = await Promise.all([
@@ -301,7 +296,6 @@ Page({
       } else {
         wx.showToast({ title: '已确认完成', icon: 'success' });
       }
-      this._forceRefresh = true;
       this.loadDetail(this.data.activityId);
     } catch (e) {
       console.error('[doConfirmStepDone] 失败:', e);
@@ -364,7 +358,6 @@ Page({
 
   _uploadBatch(voucherType, files, index) {
     if (index >= files.length) {
-      this._forceRefresh = true;
       this.loadDetail(this.data.activityId);
       return;
     }
