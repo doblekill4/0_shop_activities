@@ -199,7 +199,11 @@ async function hookStepCompleted(event, openid) {
         notifyInfo.ownerNotifyEnabled = userRes.data.notifyEnabled !== false;
         notifyInfo.ownerName = userRes.data.name || nextStep.ownerName || '';
       }
-      if (userRes && userRes.data && userRes.data.openid) {
+      // 检查接收方是否关闭通知
+      if (userRes && userRes.data && userRes.data.notifyEnabled === false) {
+        console.log('[hookStepCompleted] 用户已关闭通知，跳过发送');
+        notifyInfo.reason = 'notify_disabled';
+      } else if (userRes && userRes.data && userRes.data.openid) {
         const unit = fit(actRes.data.activityUnit, 20);
         const stepMsg = fit(`${steps[stepIndex].stepName || ''}→${nextStep.stepName || ''}`, 20);
         const venue = fit(actRes.data.venue, 20);
