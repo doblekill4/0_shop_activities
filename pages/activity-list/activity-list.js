@@ -63,6 +63,8 @@ Page({
   onShow() {
     const app = getApp();
     if (!app.globalData.loginReady) return;
+    // 正在退出登录，跳过重定向
+    if (wx.getStorageSync('_loggingOut')) return;
     if (!app.globalData.isLoggedIn && !wx.getStorageSync('userInfo')) {
       wx.reLaunch({ url: '/pages/login/login' });
       return;

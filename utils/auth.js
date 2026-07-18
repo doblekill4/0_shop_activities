@@ -180,6 +180,8 @@ const isAdmin = () => {
  * 退出登录
  */
 const logout = () => {
+  // 标记正在退出，防活动列表 onShow 重复触发重定向
+  wx.setStorageSync('_loggingOut', Date.now());
   wx.removeStorageSync('userInfo');
   wx.removeStorageSync('userReview');
   const app = getApp();

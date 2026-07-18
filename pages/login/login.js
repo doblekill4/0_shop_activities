@@ -22,6 +22,7 @@ Page({
   },
 
   onLoad() {
+    wx.removeStorageSync('_loggingOut');
     // 等 app.js autoLogin 完成后再判断
     this._waitForLoginReady();
   },
