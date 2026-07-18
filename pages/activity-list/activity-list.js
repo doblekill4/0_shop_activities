@@ -85,6 +85,21 @@ Page({
       this._needRefresh = false;
       this.loadActivities(true);
     }
+    // 收集群入口信息（已登录用户从群进入时记录白名单）
+    this._captureGroupInfo();
+  },
+
+  _captureGroupInfo() {
+    const groupInfo = wx.getGroupEnterInfo ? wx.getGroupEnterInfo() : null;
+    if (!groupInfo || !groupInfo.encryptedData) return;
+    wx.cloud.callFunction({
+      name: 'auth',
+      data: {
+        action: 'autoLogin',
+        groupEncryptedData: groupInfo.encryptedData,
+        groupIv: groupInfo.iv,
+      },
+    }).catch(function() {});
   },
 
   onHide() {
