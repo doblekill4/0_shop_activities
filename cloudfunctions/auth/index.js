@@ -150,10 +150,10 @@ async function login(event, openid) {
         return { code: 402, message: '请使用审核快捷通道，或注册自己的账号' };
       }
 
-      // 审核测试号带了真名 → 记住，稍后覆盖
-      const reviewRename = REVIEW_MODE && user.name === '审核测试' && name && name !== '审核测试';
-      if (reviewRename) {
-        console.log('[auth.login] 审核测试号改名 →', name);
+      // 审核测试号带了真名 → 拒绝复用，引导走新用户注册流程
+      if (REVIEW_MODE && user.name === '审核测试' && name && name !== '审核测试') {
+        console.log('[auth.login] 审核测试号不可改名，请创建新账号 →', name);
+        return { code: 402, message: '当前为审核测试账号，请创建新账号' };
       }
 
       // 只有王万全可以自动升级为管理员
@@ -182,17 +182,12 @@ async function login(event, openid) {
         } : {}),
       };
       // 已存在用户：仅首次注册时设置这些字段，登录时跳过（防审核快捷入口覆盖）
-      if (!user.lastLoginAt || reviewRename) {
+      if (!user.lastLoginAt) {
         if (name) updateData.name = name;
         if (department) updateData.department = department;
         if (nickname) updateData.nickname = nickname;
         if (avatarUrl) updateData.avatarUrl = avatarUrl;
         if (employeeId) updateData.employeeId = employeeId;
-      }
-      // 审核测试号改名 → 降级为普通用户
-      if (reviewRename) {
-        updateData.role = 'user';
-        updateData.permissions = ['create_activity'];
       }
 
       await db.collection('users').doc(user._id).update({ data: updateData });
