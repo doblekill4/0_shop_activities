@@ -144,17 +144,8 @@ async function login(event, openid) {
       // 已存在：更新登录信息
       const user = existRes.data[0];
 
-      // 审核模式下，审核测试号通过正常入口仅登录（无名字）→ 拒绝
-      if (REVIEW_MODE && user.name === '审核测试' && !name) {
-        console.log('[auth.login] 审核模式下正常入口拒绝复用审核测试号');
-        return { code: 402, message: '请使用审核快捷通道，或注册自己的账号' };
-      }
-
-      // 审核测试号带了真名 → 拒绝复用，引导走新用户注册流程
-      if (REVIEW_MODE && user.name === '审核测试' && name && name !== '审核测试') {
-        console.log('[auth.login] 审核测试号不可改名，请创建新账号 →', name);
-        return { code: 402, message: '当前为审核测试账号，请创建新账号' };
-      }
+      // 审核模式仅用于跳过白名单，不阻塞任何入口
+      // 正常入口的前端会在 handleAuth 中清理 userReview 标志重置缓存
 
       // 只有王万全可以自动升级为管理员
       let needUpgrade = false;

@@ -107,6 +107,11 @@ Page({
   // ===== Step 0: 授权登录 =====
   async handleAuth() {
     if (this.data.loading) return;
+    // 清理审核测试残留缓存，强制走注册流程
+    if (wx.getStorageSync('userReview')) {
+      wx.removeStorageSync('userInfo');
+      wx.removeStorageSync('userReview');
+    }
     this.setData({ loading: true });
 
     try {
@@ -215,13 +220,27 @@ Page({
     wx.switchTab({ url: '/pages/activity-list/activity-list' });
   },
 
-  // 审核快捷登录
+  // 审核快捷登录（独立通道，不经过 utils/auth.js 的 login，不写 Storage）
   async reviewQuickLogin() {
     if (this.data.reviewLoading) return;
     this.setData({ reviewLoading: true });
     try {
-      // 每次走云函数确保拿到最新 admin 权限
-      await login({ name: '审核测试', nickname: '审核测试', department: '管理部' });
+      const res = await wx.cloud.callFunction({
+        name: 'auth',
+        data: { action: 'login', name: '审核测试', nickname: '审核测试', department: '管理部' },
+      });
+      const result = res.result || {};
+      if (result.code !== 0) {
+        throw new Error(result.message || '登录失败');
+      }
+      const user = result.data.userInfo;
+      if (!user) throw new Error('获取用户信息失败');
+      // 仅写内存 + globalData，不写 Storage → 不污染正常登录的缓存态
+      app.globalData.isLoggedIn = true;
+      app.globalData.userInfo = user;
+      // 但页面导航时 getCurrentUser 会读 Storage，最小化写入仅含关键字段
+      wx.setStorageSync('userReview', true);
+      wx.setStorageSync('userInfo', user);
       this._enterApp();
     } catch (e) {
       wx.showToast({ title: '登录失败：' + (e.message || '请重试'), icon: 'none', duration: 3000 });
