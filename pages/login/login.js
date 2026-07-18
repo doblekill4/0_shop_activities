@@ -108,7 +108,7 @@ Page({
   // ===== Step 0: 授权登录 =====
   async handleAuth() {
     if (this.data.loading) return;
-    // 清理审核测试残留缓存，强制走注册流程
+    // 清理审核测试残留缓存
     if (wx.getStorageSync('userReview')) {
       wx.removeStorageSync('userInfo');
       wx.removeStorageSync('userReview');
@@ -116,17 +116,39 @@ Page({
     this.setData({ loading: true });
 
     try {
-      const result = await login({});
-      this._enterApp();
-    } catch (err) {
-      // auth.js 的 reject 返回字符串 '需要注册'，不是 {code:402} 对象
-      const errStr = String(err || '');
-      if (errStr.includes('注册')) {
+      // 先查当前微信ID对应的账号，不直接登录
+      const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'login' } });
+      const result = res.result || {};
+      if (result.code === 0 && result.data && result.data.userInfo) {
+        const user = result.data.userInfo;
+        this.setData({ loading: false });
+        wx.showModal({
+          title: '确认登录',
+          content: '当前微信账号关联：' + (user.name || '未知用户') + '\n\n是否继续登录？',
+          confirmText: '继续登录',
+          cancelText: '切换账号',
+          success: (r) => {
+            if (r.confirm) {
+              // 确认 → 写入 Storage 并进入
+              wx.setStorageSync('userInfo', user);
+              getApp().globalData.isLoggedIn = true;
+              getApp().globalData.userInfo = user;
+              this._enterApp();
+            } else {
+              // 切换 → 清空缓存，走注册流程
+              wx.removeStorageSync('userInfo');
+              this.setData({ step: 'wechatInfo' });
+            }
+          },
+        });
+      } else if (result.code === 402) {
         this.setData({ step: 'wechatInfo' });
       } else {
-        console.error('[handleAuth] 登录失败:', err);
-        wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+        wx.showToast({ title: result.message || '登录失败', icon: 'none' });
       }
+    } catch (err) {
+      console.error('[handleAuth] 失败:', err);
+      wx.showToast({ title: '登录失败，请重试', icon: 'none' });
     }
     this.setData({ loading: false });
   },
