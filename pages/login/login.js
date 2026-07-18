@@ -45,7 +45,9 @@ Page({
   // 检测审核模式
   async _checkReviewMode() {
     try {
-      const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'checkReviewMode' } });
+      const env = (wx.getAccountInfoSync ? wx.getAccountInfoSync() : {}) || {};
+      const miniprogramEnv = (env.miniProgram || {}).envVersion || '';
+      const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'checkReviewMode', miniprogramEnv } });
       const data = (res.result || {}).data || {};
       if (data.reviewMode) {
         wx.setStorageSync('reviewMode', true);
@@ -117,7 +119,8 @@ Page({
 
     try {
       // 先查当前微信ID对应的账号，不直接登录
-      const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'login' } });
+      const env2 = (wx.getAccountInfoSync ? wx.getAccountInfoSync() : {}) || {};
+      const res = await wx.cloud.callFunction({ name: 'auth', data: { action: 'login', miniprogramEnv: (env2.miniProgram || {}).envVersion || '' } });
       const result = res.result || {};
       if (result.code === 0 && result.data && result.data.userInfo) {
         const user = result.data.userInfo;

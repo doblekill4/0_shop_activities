@@ -1,6 +1,14 @@
 // utils/auth.js - 微信登录与权限工具（云开发版 + 本地备用模式）
 const { callCloudFunc } = require('./request');
 
+// 获取当前小程序环境版本（develop/trial/release）
+function getMiniEnv() {
+  try {
+    const info = wx.getAccountInfoSync ? wx.getAccountInfoSync() : null;
+    return (info && info.miniProgram && info.miniProgram.envVersion) || '';
+  } catch (e) { return ''; }
+}
+
 // =====================================================
 // 开关：设为 false 可切换为纯本地注册模式（不依赖云函数）
 // 用于云函数未部署或调试阶段快速跑通流程
@@ -39,6 +47,7 @@ const login = (data = {}) => {
       name: 'auth',
       data: {
         action: 'login',
+        miniprogramEnv: getMiniEnv(),
         ...data,
       },
       success: (res) => {
@@ -116,7 +125,7 @@ const autoLogin = (extraData = {}) => {
     // ---- 云函数模式 ----
     wx.cloud.callFunction({
       name: 'auth',
-      data: { action: 'autoLogin', ...extraData },
+      data: { action: 'autoLogin', miniprogramEnv: getMiniEnv(), ...extraData },
       success: (res) => {
         console.log('[auth.autoLogin] 云函数返回', res);
         const result = res.result;

@@ -3,8 +3,13 @@ const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 
-// 审核模式：跳过门店群白名单，允许任意用户注册（上线后关闭）
-const REVIEW_MODE = process.env.REVIEW_MODE === 'true';
+// 审核模式：仅体验版/开发版生效，正式版不受影响
+const REVIEW_MODE_ENABLED = process.env.REVIEW_MODE === 'true';
+function isReviewMode(event) {
+  if (!REVIEW_MODE_ENABLED) return false;
+  const env = (event || {}).miniprogramEnv || '';
+  return env === 'trial' || env === 'develop';
+}
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
@@ -18,7 +23,7 @@ exports.main = async (event, context) => {
       case 'autoLogin':
         return await autoLogin(openid, event);
       case 'checkReviewMode':
-        return { code: 0, data: { reviewMode: REVIEW_MODE }, message: 'ok' };
+        return { code: 0, data: { reviewMode: isReviewMode(event) }, message: 'ok' };
       case 'reviewLogin':
         return await reviewLogin();
       case 'login':
@@ -106,7 +111,7 @@ async function autoLogin(openid, event = {}) {
     if (res.data && res.data.length > 0) {
       const user = res.data[0];
       // 审核模式关闭后，清退审核测试账号
-      if (!REVIEW_MODE && user.name === '审核测试') {
+      if (!isReviewMode(event) && user.name === '审核测试') {
         console.log('[autoLogin] 审核模式已关闭，拒绝审核测试账号');
         return { code: 401, message: '审核已结束，不再允许测试登录' };
       }
@@ -147,7 +152,7 @@ async function autoLogin(openid, event = {}) {
       return {
         code: 0,
         data: {
-          reviewMode: REVIEW_MODE,
+          reviewMode: isReviewMode(event),
           userInfo: {
             _id: user._id,
             openid: user.openid || openid,
@@ -168,7 +173,7 @@ async function autoLogin(openid, event = {}) {
         message: 'success',
       };
     }
-    return { code: 401, message: '未登录', data: { reviewMode: REVIEW_MODE } };
+    return { code: 401, message: '未登录', data: { reviewMode: isReviewMode(event) } };
   } catch (e) {
     console.error('[auth.autoLogin] 数据库错误', e);
     return { code: 401, message: '未登录（数据库异常：' + e.message + '）' };
@@ -272,7 +277,7 @@ async function login(event, openid) {
       }
 
       // 门店群白名单拦截：审核模式下跳过
-      if (!REVIEW_MODE) {
+      if (!isReviewMode(event)) {
         const storeGroupExists = await checkStoreGroupExists();
         if (storeGroupExists && !effectiveFromGroup) {
           console.log('[auth.login] 门店群已登记，非群入口注册被拒');
