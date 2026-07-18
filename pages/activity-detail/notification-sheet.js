@@ -17,6 +17,9 @@ Page({
     activity: {},
     sending: false,
     subscribed: false,
+    resultVisible: false,
+    resultSuccess: true,
+    resultMsg: '',
   },
 
   onLoad(options) {
@@ -102,12 +105,23 @@ Page({
       const dateStr = activity.activityDate ? activity.activityDate.slice(5).replace('-','月') + '日' : '今日';
       const message = `${dateStr}「${activity.activityUnit || ''}」有您负责的环节，请留意`;
 
-      await sendChangeNotification(activityId, ownerNames, message);
-      wx.showToast({ title: '通知已发送', icon: 'success' });
-      setTimeout(() => wx.navigateBack(), 1200);
+      const res = await sendChangeNotification(activityId, ownerNames, message);
+      const count = (res && res.data) ? res.data.sentCount : (res && res.sentCount) || 0;
+      this.setData({
+        resultVisible: true,
+        resultSuccess: true,
+        resultMsg: '已发送 ' + count + ' 条通知',
+      });
+      setTimeout(() => this.setData({ resultVisible: false }), 2000);
+      setTimeout(() => wx.navigateBack(), 2500);
     } catch (e) {
       console.error('[notif-sheet] 发送失败', e);
-      wx.showToast({ title: '发送失败：' + (e.message || '未知错误'), icon: 'none' });
+      this.setData({
+        resultVisible: true,
+        resultSuccess: false,
+        resultMsg: '发送失败：' + (e.message || '未知错误'),
+      });
+      setTimeout(() => this.setData({ resultVisible: false }), 2500);
     }
     this.setData({ sending: false });
   },

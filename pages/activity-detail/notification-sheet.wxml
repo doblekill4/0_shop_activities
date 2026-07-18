@@ -45,4 +45,10 @@
       </button>
     </view>
   </view>
+
+  <!-- 发送结果渐隐提示 -->
+  <view class="result-toast {{resultVisible ? 'show' : ''}}" wx:if="{{resultVisible}}">
+    <text class="result-icon">{{resultSuccess ? '✅' : '❌'}}</text>
+    <text class="result-text">{{resultMsg}}</text>
+  </view>
 </view>

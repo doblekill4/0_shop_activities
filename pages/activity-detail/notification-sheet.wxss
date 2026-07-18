@@ -125,3 +125,22 @@
   font-weight: 600;
   border: none;
 }
+
+/* 发送结果渐隐提示 */
+.result-toast {
+  position: fixed;
+  top: 200rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.78);
+  padding: 24rpx 40rpx;
+  border-radius: 16rpx;
+  flex-direction: row;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 400;
+}
+.result-toast.show { opacity: 1; }
+.result-icon { font-size: 36rpx; }
+.result-text { font-size: 28rpx; color: #fff; margin-left: 16rpx; }
