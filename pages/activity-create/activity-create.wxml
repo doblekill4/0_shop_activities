@@ -1,7 +1,7 @@
 <!-- pages/activity-create/activity-create.wxml -->
 <!-- 活动创建页（复用 activity-form 组件） -->
 <view class="create-page">
-  <scroll-view scroll-y class="form-scroll">
+  <scroll-view scroll-y scroll-top="{{scrollTop}}" bindscroll="onFormScroll" class="form-scroll">
 
     <!-- 提示横幅 -->
     <view class="banner-tip">

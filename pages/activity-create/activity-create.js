@@ -61,6 +61,11 @@ Page({
     calWeeks: [],
     calExpanded: false,
     calAutoExpand: false,
+    scrollTop: 0,
+  },
+
+  onFormScroll(e) {
+    this._scrollTop = e.detail.scrollTop;
   },
 
   async onLoad() {
@@ -429,6 +434,10 @@ Page({
 
         const fieldCount = Object.keys(updates).length;
         wx.showToast({ title: `已识别 ${fieldCount} 个字段`, icon: 'success' });
+        // 恢复滚动位置，防止自动滚回顶部
+        var st = this._scrollTop || 0;
+        setTimeout(() => this.setData({ scrollTop: st }), 50);
+        setTimeout(() => this.setData({ scrollTop: st }), 200);
       } else {
         this.setData({ parsing: false });
         wx.showToast({ title: '未识别到有效信息，请检查格式', icon: 'none' });
