@@ -621,6 +621,7 @@ Page({
     if (this._loading) return;
     this._loading = true;
     this.setData({ saving: true });
+    wx.showLoading({ title: '保存中...' });
     try {
       const res = await createActivity({ ...this.data.form, status: 'draft' });
       const draftId = res.id || res._id;
@@ -631,6 +632,7 @@ Page({
       console.error('[saveDraft] 失败:', e);
       wx.showToast({ title: '保存失败：' + (e.message || e.errMsg || '未知错误'), icon: 'none', duration: 2500 });
     }
+    wx.hideLoading();
     this.setData({ saving: false });
     this._loading = false;
   },
@@ -645,6 +647,7 @@ Page({
   },
 
   async _doSubmit(force) {
+    wx.showLoading({ title: '提交中...' });
     try {
       // 场地冲突检测
       if (!force) {
@@ -662,13 +665,14 @@ Page({
             ).join('\n');
             this.setData({ submitting: false });
             this._loading = false;
+            wx.hideLoading();
             wx.showModal({
               title: `场地冲突 (${conflicts.length}处)`,
               content: `${lines}\n\n请沟通使用情况后提交`,
               confirmText: '已沟通，确认提交',
               confirmColor: '#D32F2F',
               success: (r) => {
-                if (r.confirm) this.submitActivity(true); // force 跳过冲突检测
+                if (r.confirm) this.submitActivity(true);
               },
             });
             return;
@@ -687,6 +691,7 @@ Page({
         // 管理员确认弹窗
         this.setData({ submitting: false });
         this._loading = false;
+        wx.hideLoading();
         wx.showModal({
           title: '接待上限提醒',
           content: '当天已达接待上限，是否确认提交？',
@@ -704,6 +709,7 @@ Page({
           setTimeout(() => wx.navigateBack(), 2500);
           return;
         }
+        wx.hideLoading();
         wx.showToast({ title: '活动已提交', icon: 'success' });
         setTimeout(() => {
           const allTmpls = [
@@ -733,6 +739,7 @@ Page({
     } catch (e) {
       wx.showToast({ title: '提交失败', icon: 'none', duration: 2500 });
     }
+    wx.hideLoading();
     this.setData({ submitting: false });
     this._loading = false;
   },

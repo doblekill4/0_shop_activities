@@ -130,9 +130,9 @@ Page({
   async saveEdit() {
     if (this.data.saving) return;
     this.setData({ saving: true });
+    wx.showLoading({ title: '保存中...' });
     try {
       const cleanForm = this._buildCleanForm();
-      console.log('[saveEdit] 提交 cleanForm:', cleanForm);
       await updateActivity(this.data.activityId, cleanForm);
       wx.showToast({ title: '已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 1200);
@@ -140,6 +140,7 @@ Page({
       console.error('[saveEdit] 保存失败:', e);
       wx.showToast({ title: '保存失败：' + (e.message || e.errMsg || '未知错误'), icon: 'none' });
     }
+    wx.hideLoading();
     this.setData({ saving: false });
   },
 
@@ -147,10 +148,10 @@ Page({
   async submitDraft() {
     if (this.data.submitting) return;
     this.setData({ submitting: true });
+    wx.showLoading({ title: '提交中...' });
     try {
       const cleanForm = this._buildCleanForm();
-      cleanForm.status = 'pending';  // 关键：将草稿变为正式活动
-      console.log('[submitDraft] 提交 cleanForm:', cleanForm);
+      cleanForm.status = 'pending';
       await updateActivity(this.data.activityId, cleanForm);
       wx.showToast({ title: '活动已提交', icon: 'success' });
       setTimeout(() => {
@@ -162,6 +163,7 @@ Page({
       console.error('[submitDraft] 提交失败:', e);
       wx.showToast({ title: '提交失败：' + (e.message || e.errMsg || '未知错误'), icon: 'none' });
     }
+    wx.hideLoading();
     this.setData({ submitting: false });
   },
 
