@@ -17,17 +17,17 @@
       <text class="card-desc">授权获取你的微信信息，用于活动管理和身份识别</text>
 
       <text class="internal-notice">非公开小程序，仅限店铺内部员工经管理员授权后使用</text>
-      <button class="btn-auth" bindtap="handleAuth" loading="{{loading}}">
+      <button class="btn-auth" bindtap="handleAuth" loading="{{loading}}" wx:if="{{!reviewMode}}">
         <text wx:if="{{!loading}}">微信授权登录</text>
         <text wx:else>授权中...</text>
       </button>
-
-      <text class="agreement-text">登录即表示同意使用条款和隐私政策</text>
+      <text class="agreement-text" wx:if="{{!reviewMode}}">登录即表示同意使用条款和隐私政策</text>
     </view>
 
-    <!-- 审核快捷登录：仅审核模式下显示 -->
+    <!-- 审核模式：仅显示快捷通道，不显示正常登录 -->
     <view class="review-login" wx:if="{{reviewMode}}">
-      <view class="review-divider"><text>审核快捷通道</text></view>
+      <text class="review-title">审核测试入口</text>
+      <text class="review-notice">审核模式下仅开放此入口，正常登录已关闭</text>
       <button class="btn-review" bindtap="reviewQuickLogin" loading="{{reviewLoading}}">
         审核测试登录（一键进入）
       </button>

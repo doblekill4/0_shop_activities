@@ -221,6 +221,10 @@ async function login(event, openid) {
           console.log('[auth.login] 门店群已登记，非群入口注册被拒');
           return { code: 403, message: '仅限门店群成员注册，请从群聊中打开小程序' };
         }
+      } else if (name !== '审核测试') {
+        // 审核模式下仅允许「审核测试」账号注册，防正常登录绕过
+        console.log('[auth.login] 审核模式拒绝非审核账号:', name);
+        return { code: 403, message: '审核模式仅限快捷通道登录' };
       }
 
       // 最终角色：admin > 门店群验证通过 > user
