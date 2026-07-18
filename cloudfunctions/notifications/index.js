@@ -593,8 +593,8 @@ async function sendRobust(openid, tmplDataPairs, pageId) {
       return tmplId;
     } catch (e) {
       lastErr = `[${e.errCode}] ${e.errMsg || e.message || ''}`;
-      if (e.errCode === 43101) {
-        console.log('[sendRobust] 模板', tmplId, '已用完，尝试下一个');
+      if (e.errCode === 43101 || e.errCode === -604101) {
+        console.log('[sendRobust] 模板', tmplId, e.errCode === 43101 ? '已用完' : '服务端异常', '，尝试下一个');
         continue;
       }
       console.error('[sendRobust] 发送失败:', e.errCode, e.errMsg, 'tmplId:', tmplId);
