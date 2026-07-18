@@ -19,6 +19,8 @@ exports.main = async (event, context) => {
         return await autoLogin(openid, event);
       case 'checkReviewMode':
         return { code: 0, data: { reviewMode: REVIEW_MODE }, message: 'ok' };
+      case 'reviewLogin':
+        return await reviewLogin();
       case 'login':
         return await login(event, openid);
       case 'listDepartments':
@@ -45,6 +47,50 @@ exports.main = async (event, context) => {
     return { code: -1, message: e.message || '登录失败' };
   }
 };
+
+/* ========== 审核专用登录（合成 openid，不占用真实用户 openid） ========== */
+async function reviewLogin() {
+  const SYNTHETIC_ID = '_review_admin';
+  try {
+    const res = await db.collection('users').where({ openid: SYNTHETIC_ID }).get();
+    let user;
+    if (res.data && res.data.length > 0) {
+      user = res.data[0];
+      await db.collection('users').doc(user._id).update({
+        data: { lastLoginAt: db.serverDate() },
+      });
+    } else {
+      const addRes = await db.collection('users').add({
+        data: {
+          openid: SYNTHETIC_ID,
+          name: '审核测试',
+          nickname: '审核测试',
+          department: '管理部',
+          role: 'admin',
+          permissions: [
+            'create_activity', 'edit_activity', 'delete_activity',
+            'upload_voucher', 'manage_users', 'manage_departments',
+            'view_all_revisions', 'export_data',
+            'send_notification', 'assign_process_owner', 'set_capacity_limit',
+          ],
+          notifyEnabled: true,
+          createdAt: db.serverDate(),
+          lastLoginAt: db.serverDate(),
+        },
+      });
+      user = { _id: addRes._id, openid: SYNTHETIC_ID, name: '审核测试', nickname: '审核测试', department: '管理部', role: 'admin', permissions: [], notifyEnabled: true };
+      user.permissions = [
+        'create_activity', 'edit_activity', 'delete_activity',
+        'upload_voucher', 'manage_users', 'manage_departments',
+        'view_all_revisions', 'export_data',
+        'send_notification', 'assign_process_owner', 'set_capacity_limit',
+      ];
+    }
+    return { code: 0, data: { userInfo: user }, message: 'success' };
+  } catch (e) {
+    return { code: -1, message: '审核登录失败：' + (e.message || '') };
+  }
+}
 
 /* ========== 自动登录（检查是否已注册） ========== */
 async function autoLogin(openid, event = {}) {
@@ -144,9 +190,8 @@ async function login(event, openid) {
       // 已存在：更新登录信息
       const user = existRes.data[0];
 
-      // 审核测试号：专用通道放行，正常入口无名字→402
-      const reviewReclaim = user.name === '审核测试' && !event._review && name;
-      if (user.name === '审核测试' && !event._review && !name) {
+      // 审核测试号（合成 openid 用户）不允许正常入口登录
+      if (user.name === '审核测试') {
         console.log('[auth.login] 审核测试号拒绝正常入口登录');
         return { code: 402, message: '请使用审核快捷通道登录' };
       }
@@ -177,14 +222,13 @@ async function login(event, openid) {
         } : {}),
       };
       // 已存在用户：仅首次注册时设置，登录时跳过（防审核快捷入口覆盖）
-      if (!user.lastLoginAt || reviewReclaim) {
+      if (!user.lastLoginAt) {
         if (name) updateData.name = name;
         if (department) updateData.department = department;
         if (nickname) updateData.nickname = nickname;
         if (avatarUrl) updateData.avatarUrl = avatarUrl;
         if (employeeId) updateData.employeeId = employeeId;
       }
-      if (reviewReclaim) console.log('[auth.login] 审核测试号收回 →', name);
 
       await db.collection('users').doc(user._id).update({ data: updateData });
 
@@ -236,10 +280,8 @@ async function login(event, openid) {
         }
       }
 
-      // 最终角色：专用通道的审核测试→admin，其余不变
-      const fromReview = REVIEW_MODE && name === '审核测试' && event._review;
+      // 最终角色：admin > 门店群验证通过 > user
       const finalRole = isAdmin ? 'admin'
-        : fromReview ? 'admin'
         : verifiedStoreGroup ? 'employee'
         : 'user';
 
