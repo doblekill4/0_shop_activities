@@ -116,12 +116,16 @@ Page({
       setTimeout(() => wx.navigateBack(), 2500);
     } catch (e) {
       console.error('[notif-sheet] 发送失败', e);
+      var msg = '发送失败：' + (e.message || '未知错误');
+      if (String(e.message || '').indexOf('43101') !== -1) {
+        msg = '接收方未授权通知，请让对方重启小程序授权';
+      }
       this.setData({
         resultVisible: true,
         resultSuccess: false,
-        resultMsg: '发送失败：' + (e.message || '未知错误'),
+        resultMsg: msg,
       });
-      setTimeout(() => this.setData({ resultVisible: false }), 2500);
+      setTimeout(() => this.setData({ resultVisible: false }), 3000);
     }
     this.setData({ sending: false });
   },
