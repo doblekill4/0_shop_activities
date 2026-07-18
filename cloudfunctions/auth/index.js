@@ -164,11 +164,14 @@ async function login(event, openid) {
           ],
         } : {}),
       };
-      if (name) updateData.name = name;
-      if (department) updateData.department = department;
-      if (nickname) updateData.nickname = nickname;
-      if (avatarUrl) updateData.avatarUrl = avatarUrl;
-      if (employeeId) updateData.employeeId = employeeId;
+      // 已存在用户：仅首次注册时设置这些字段，登录时跳过（防审核快捷入口覆盖）
+      if (!user.lastLoginAt) {
+        if (name) updateData.name = name;
+        if (department) updateData.department = department;
+        if (nickname) updateData.nickname = nickname;
+        if (avatarUrl) updateData.avatarUrl = avatarUrl;
+        if (employeeId) updateData.employeeId = employeeId;
+      }
 
       await db.collection('users').doc(user._id).update({ data: updateData });
 

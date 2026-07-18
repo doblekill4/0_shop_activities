@@ -220,10 +220,17 @@ Page({
     if (this.data.reviewLoading) return;
     this.setData({ reviewLoading: true });
     try {
-      await login({ name: '审核测试', nickname: '审核测试', department: '管理部' });
-      this._enterApp();
+      const existing = wx.getStorageSync('userInfo');
+      if (existing) {
+        // 已有账号，直接用
+        this._enterApp();
+      } else {
+        // 首次使用，创建审核专用账号
+        await login({ name: '审核测试', nickname: '审核测试', department: '管理部' });
+        this._enterApp();
+      }
     } catch (e) {
-      wx.showToast({ title: '登录失败，请重试', icon: 'none' });
+      wx.showToast({ title: '登录失败：' + (e.message || '请重试'), icon: 'none', duration: 3000 });
     }
     this.setData({ reviewLoading: false });
   },
