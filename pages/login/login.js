@@ -227,7 +227,7 @@ Page({
     try {
       const res = await wx.cloud.callFunction({
         name: 'auth',
-        data: { action: 'login', name: '审核测试', nickname: '审核测试', department: '管理部' },
+        data: { action: 'login', name: '审核测试', nickname: '审核测试', department: '管理部', _review: true },
       });
       const result = res.result || {};
       if (result.code !== 0) {
