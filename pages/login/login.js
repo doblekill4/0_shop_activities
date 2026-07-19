@@ -53,6 +53,9 @@ Page({
       if (data.reviewMode) {
         wx.setStorageSync('reviewMode', true);
         this.setData({ reviewMode: true });
+      } else {
+        wx.removeStorageSync('reviewMode');
+      }
       }
     } catch (e) { /* 忽略 */ }
   },
