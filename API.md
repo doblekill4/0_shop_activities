@@ -27,11 +27,11 @@ API_KEY=a1b2c3d4e5f6...（64位十六进制串）
 点击保存。
 
 ### 3. 开启 HTTP 访问服务
-云开发控制台 → 「**设置**」→「**HTTP 访问服务**」→ 点击「**开启**」。
+云开发控制台网页端 → 「**HTTP 网关**」→ 点击「**+ 添加域名路由**」→ 路径填 `/api`、路由启用选 `api` 云函数 → 确定。
 
-记录生成的**访问域名**，格式类似：
+访问地址格式（默认域名，免费）：
 ```
-https://cloud1-6gxw5t089a5cfdce.ap-shanghai.tcb-api.tencentcloudapi.com/api
+https://cloud1-6gxw5t089a5cfdce-1421394449.ap-shanghai.app.tcloudbase.com/api
 ```
 
 ### 4. 上传云函数
@@ -61,6 +61,7 @@ https://cloud1-6gxw5t089a5cfdce.ap-shanghai.tcb-api.tencentcloudapi.com/api
 ```
 POST https://<你的域名>/api
 ```
+（默认域名格式见第二节步骤3，无需自定义域名）
 
 **Headers**
 ```
