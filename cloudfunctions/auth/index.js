@@ -97,6 +97,42 @@ async function reviewLogin() {
   }
 }
 
+/* ========== 权限合并（管理员补全 + 部门权限组） ========== */
+async function mergePermissions(user) {
+  let perms = [...(user.permissions || [])];
+  // 管理员自动补全权限
+  if (user.role === 'admin') {
+    const adminPerms = [
+      'create_activity', 'edit_activity', 'delete_activity',
+      'upload_voucher', 'manage_users', 'manage_departments',
+      'view_all_revisions', 'export_data',
+      'send_notification', 'assign_process_owner', 'set_capacity_limit',
+    ];
+    const missing = adminPerms.filter(p => !perms.includes(p));
+    if (missing.length > 0) {
+      perms = [...perms, ...missing];
+      await db.collection('users').doc(user._id).update({ data: { permissions: perms } }).catch(() => {});
+    }
+  }
+  // 合并部门权限组
+  if (user.department) {
+    try {
+      const deptRes = await db.collection('departments')
+        .where({ name: user.department }).get();
+      if (deptRes.data && deptRes.data.length > 0 && deptRes.data[0].permissionGroupId) {
+        const pgRes = await db.collection('permission_groups')
+          .doc(deptRes.data[0].permissionGroupId).get();
+        if (pgRes.data && Array.isArray(pgRes.data.permissions)) {
+          perms = [...new Set([...perms, ...pgRes.data.permissions])];
+        }
+      }
+    } catch (e) {
+      console.warn('[mergePermissions] 部门权限合并失败', e.message);
+    }
+  }
+  return perms;
+}
+
 /* ========== 自动登录（检查是否已注册） ========== */
 async function autoLogin(openid, event = {}) {
   try {
@@ -120,40 +156,8 @@ async function autoLogin(openid, event = {}) {
         console.log('[autoLogin] 审核模式已关闭，拒绝审核测试账号');
         return { code: 401, message: '审核已结束，不再允许测试登录' };
       }
-      // 合并部门关联的权限组权限
-      let permissions = user.permissions || [];
-      // 为现有管理员自动补全新增权限
-      if (user.role === 'admin') {
-        const adminPerms = [
-          'create_activity', 'edit_activity', 'delete_activity',
-          'upload_voucher', 'manage_users', 'manage_departments',
-          'view_all_revisions', 'export_data',
-          'send_notification', 'assign_process_owner', 'set_capacity_limit',
-        ];
-        const missing = adminPerms.filter(p => !permissions.includes(p));
-        if (missing.length > 0) {
-          permissions = [...permissions, ...missing];
-          await db.collection('users').doc(user._id).update({
-            data: { permissions }
-          }).catch(() => {});
-        }
-      }
-      if (user.department) {
-        try {
-          const deptRes = await db.collection('departments')
-            .where({ name: user.department }).get();
-          if (deptRes.data && deptRes.data.length > 0 && deptRes.data[0].permissionGroupId) {
-            const pgRes = await db.collection('permission_groups')
-              .doc(deptRes.data[0].permissionGroupId).get();
-            if (pgRes.data && Array.isArray(pgRes.data.permissions)) {
-              // 合并，去重
-              permissions = [...new Set([...permissions, ...pgRes.data.permissions])];
-            }
-          }
-        } catch (e) {
-          console.warn('[autoLogin] 部门权限合并失败', e.message);
-        }
-      }
+      // 合并权限（管理员补全 + 部门权限组）
+      const permissions = await mergePermissions(user);
       return {
         code: 0,
         data: {
@@ -261,7 +265,7 @@ async function login(event, openid) {
             department: updated.data.department,
             avatarUrl: updated.data.avatarUrl || '',
             employeeId: updated.data.employeeId || '',
-            permissions: updated.data.permissions || [],
+            permissions: await mergePermissions(updated.data),
             role: updated.data.role || 'user',
             notifyEnabled: updated.data.notifyEnabled !== false,
           },
@@ -346,7 +350,7 @@ async function login(event, openid) {
             department: newUser.department,
             avatarUrl: newUser.avatarUrl || '',
             employeeId: newUser.employeeId || '',
-            permissions: newUser.permissions,
+            permissions: await mergePermissions(newUser),
             role: newUser.role,
             notifyEnabled: true,
           },
