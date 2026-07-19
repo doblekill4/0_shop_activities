@@ -43,6 +43,7 @@ Page({
     canExport: false,
     canManageVoucher: false,  // 只有创建人可以上传/删除凭证
     isAdmin: false,
+    adminOverride: false,
     loading: true,
     stepToastVisible: false,
     stepToastMsg: '',
@@ -265,6 +266,11 @@ Page({
       };
     });
     this.setData({ revisions });
+  },
+
+  // 管理员越权开关
+  toggleAdminOverride() {
+    this.setData({ adminOverride: !this.data.adminOverride });
   },
 
   // 环节负责人确认完成

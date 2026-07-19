@@ -83,6 +83,12 @@
         <text class="section-sub">{{doneSteps}}/{{totalSteps}} 已完成</text>
       </view>
 
+      <!-- 管理员越权开关 -->
+      <view class="admin-override-bar" wx:if="{{isAdmin}}">
+        <text class="override-label">管理员代提交</text>
+        <switch checked="{{adminOverride}}" bindchange="toggleAdminOverride" color="#2E7D32" />
+      </view>
+
       <!-- 进度条 -->
       <view class="progress-bar-bg">
         <view class="progress-bar-fill" style="width: {{progressPct + '%'}}" />
@@ -117,14 +123,14 @@
             <!-- 负责人确认按钮 -->
             <button
               class="btn-confirm-step"
-              wx:if="{{!step.completedAt && step.isCurrentUserOwner}}"
+              wx:if="{{!step.completedAt && (step.isCurrentUserOwner || adminOverride)}}"
               data-step-id="{{step.id}}"
               bindtap="confirmStepDone"
             >确认完成</button>
             <!-- 撤销完成按钮 -->
             <button
               class="btn-undo-step"
-              wx:if="{{step.completedAt && step.isCurrentUserOwner}}"
+              wx:if="{{step.completedAt && (step.isCurrentUserOwner || adminOverride)}}"
               data-step-id="{{step.id}}"
               bindtap="undoStepDone"
             >撤销完成</button>
