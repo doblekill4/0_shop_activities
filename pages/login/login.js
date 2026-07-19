@@ -56,7 +56,6 @@ Page({
       } else {
         wx.removeStorageSync('reviewMode');
       }
-      }
     } catch (e) { /* 忽略 */ }
   },
 
