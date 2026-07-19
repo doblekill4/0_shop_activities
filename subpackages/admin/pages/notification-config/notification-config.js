@@ -11,6 +11,8 @@ Page({
       '流程开始前（通知环节负责人）',
       '上一流程结束后（通知下一环节负责人）',
       '上一流程结束后（通知指定部门）',
+      '最后环节完成后（通知预订人）',
+      '活动被他人修改后（通知预订人）',
     ],
     departments: [],
     allUsers: [],
@@ -71,8 +73,8 @@ Page({
     const newVal = Number(e.detail.value);
     // timingIndex=4（通知指定部门）时默认选部门群组
     const updates = { [`rules[${idx}].timingIndex`]: newVal };
-    if (newVal === 4) {
-      updates[`rules[${idx}].targetTypeIndex`] = 1;
+    if (newVal >= 4) {
+      // timingIndex 4/5/6 自动选择目标（部门/预订人），不需要手动选
       updates[`rules[${idx}].targets`] = [];
     }
     this.setData(updates);

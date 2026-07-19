@@ -302,7 +302,13 @@ async function updateActivity(event, openid) {
   updateData.revisionLog = existingRevisionLog;
 
   await db.collection('activities').doc(id).update({ data: updateData });
-  // 通知调度由 notifications 云函数定时器统一处理，此处不再单独触发
+  // 非创建者修改活动 → 异步通知预订人
+  if (userInfo.name !== oldRes.data.bookingPerson && oldRes.data.bookingPerson) {
+    cloud.callFunction({
+      name: 'notifications',
+      data: { action: 'notifyBookingPersonOnEdit', activityId: id, editorName: userInfo.name },
+    }).catch(e => console.warn('[updateActivity] 通知预订人失败（异步，不影响返回）', e.message));
+  }
   return { code: 0, message: '更新成功' };
 }
 

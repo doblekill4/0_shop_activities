@@ -36,6 +36,8 @@ exports.main = async (event, context) => {
         return await scanAndNotify();
       case 'scheduleForActivity':
         return await scheduleForActivity(event);
+      case 'notifyBookingPersonOnEdit':
+        return await notifyBookingPersonOnEdit(event);
       case 'testSend':
         return await testSend(event, openid);
       default:
@@ -186,7 +188,25 @@ async function hookStepCompleted(event, openid) {
     const nextStep = steps[nextIdx];
     console.log('[hookStepCompleted] nextIdx:', nextIdx, 'nextStep:', nextStep ? nextStep.stepName : '无', 'ownerId:', nextStep ? nextStep.ownerId : '');
     if (!nextStep) {
-      console.log('[hookStepCompleted] 无下一环节（已是最后一个），跳过通知');
+      // 最后一个环节完成 → 通知预订人（timingIndex === 5）
+      const notifyBooker = rules.some(r => r.timingIndex === 5);
+      if (notifyBooker && actRes.data.bookingPerson) {
+        const bookerRes = await db.collection('users')
+          .where({ name: actRes.data.bookingPerson }).get().catch(() => ({ data: [] }));
+        const booker = bookerRes.data && bookerRes.data[0];
+        if (booker && booker.openid && booker.notifyEnabled !== false) {
+          const unit = fit(actRes.data.activityUnit, 20);
+          const stepMsg = fit(`「${steps[stepIndex].stepName || ''}」已完成`, 20);
+          const venue = fit(actRes.data.venue, 20);
+          await sendRobust(booker.openid, [
+            [TMPL_ID, { thing24: { value: unit }, thing12: { value: stepMsg }, thing10: { value: venue }, name3: { value: fit(booker.name, 10) }, time27: { value: steps[stepIndex].endTime || '' } }],
+            [TMPL_STATUS, { time4: { value: steps[stepIndex].endTime || '' }, thing1: { value: unit }, thing2: { value: stepMsg }, phrase3: { value: '已完成' }, thing7: { value: fit(booker.name, 10) } }],
+          ], actRes.data._id);
+          notifyInfo.sent = true;
+          notifyInfo.ownerName = booker.name;
+          console.log('[hookStepCompleted] 最后环节完成，已通知预订人:', booker.name);
+        }
+      }
       notifyInfo.reason = 'last_step';
     } else if (!nextStep.ownerId || nextStep.ownerId === '__pending__') {
       console.log('[hookStepCompleted] 下一环节无负责人或待分配，跳过通知');
@@ -371,7 +391,7 @@ async function scheduleForActivity(event) {
         }, triggerAt));
       }
     }
-    // timingIndex 3/4 由 hookStepCompleted 实时触发，不需要预调度
+    // timingIndex 3/4/5/6 由 hookStepCompleted/notifyBookingPersonOnEdit 实时触发，不需要预调度
   }
 
   // 5. 批量写入任务文档（_task_YYYYMMDD_{activityId}_{index}）
@@ -536,6 +556,44 @@ async function testSend(event, openid) {
   } catch (e) {
     console.error('[testSend] 发送失败:', e.errMsg || e.message);
     return { code: -1, message: '发送失败: ' + (e.errMsg || e.message) };
+  }
+}
+
+/* ========== 非创建者修改活动后通知预订人（timingIndex === 6） ========== */
+async function notifyBookingPersonOnEdit(event) {
+  const { activityId, editorName } = event;
+  try {
+    // 检查规则
+    let rules = [];
+    try {
+      const gRes = await db.collection('activities').doc('_system_global_rules').get();
+      if (gRes.data && gRes.data.value) rules = gRes.data.value;
+    } catch (e) { /* 忽略 */ }
+    const hasRule = rules.some(r => r.timingIndex === 6);
+    if (!hasRule) return { code: 0, message: '无对应规则，跳过' };
+
+    const actRes = await db.collection('activities').doc(activityId).get();
+    if (!actRes.data || !actRes.data.bookingPerson) return { code: 0, message: '无预订人，跳过' };
+
+    const bookerRes = await db.collection('users')
+      .where({ name: actRes.data.bookingPerson }).get().catch(() => ({ data: [] }));
+    const booker = bookerRes.data && bookerRes.data[0];
+    if (!booker || !booker.openid || booker.notifyEnabled === false) {
+      return { code: 0, message: '预订人未授权通知' };
+    }
+
+    const unit = fit(actRes.data.activityUnit, 20);
+    const venue = fit(actRes.data.venue, 20);
+    const msg = fit(`${editorName || '其他人'}修改了活动信息`, 20);
+    await sendRobust(booker.openid, [
+      [TMPL_ID, { thing24: { value: unit }, thing12: { value: msg }, thing10: { value: venue }, name3: { value: fit(booker.name, 10) }, time27: { value: actRes.data.activityDate || '' } }],
+      [TMPL_STATUS, { time4: { value: actRes.data.activityDate || '' }, thing1: { value: unit }, thing2: { value: msg }, phrase3: { value: '已修改' }, thing7: { value: fit(booker.name, 10) } }],
+    ], activityId);
+    console.log('[notifyBookingPersonOnEdit] 已通知预订人:', booker.name);
+    return { code: 0, message: '已通知' };
+  } catch (e) {
+    console.warn('[notifyBookingPersonOnEdit] 失败:', e.message);
+    return { code: 0, message: '通知失败：' + e.message };
   }
 }
 
