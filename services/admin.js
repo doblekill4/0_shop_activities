@@ -27,6 +27,7 @@ const getUsers = async () => {
   return res;
 };
 const updateUser = (id, data) => callCloudFunc('admin', { action: 'updateUser', id, data });
+const clearUserCache = () => { _userCache = null; _userCacheTime = 0; };
 
 module.exports = {
   getPermissionGroups,
@@ -39,4 +40,5 @@ module.exports = {
   deleteDepartment,
   getUsers,
   updateUser,
+  clearUserCache,
 };

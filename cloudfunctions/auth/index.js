@@ -110,6 +110,11 @@ async function autoLogin(openid, event = {}) {
     const res = await db.collection('users').where({ openid }).get();
     if (res.data && res.data.length > 0) {
       const user = res.data[0];
+      // 拦截已离职员工
+      if (user.status === 'inactive') {
+        console.log('[autoLogin] 用户已离职，拒绝登录:', user.name);
+        return { code: 403, message: '账号已停用，请联系管理员' };
+      }
       // 审核模式关闭后，清退审核测试账号
       if (!isReviewMode(event) && user.name === '审核测试') {
         console.log('[autoLogin] 审核模式已关闭，拒绝审核测试账号');
@@ -194,6 +199,12 @@ async function login(event, openid) {
     if (existRes.data && existRes.data.length > 0) {
       // 已存在：更新登录信息
       const user = existRes.data[0];
+
+      // 拦截已离职员工
+      if (user.status === 'inactive') {
+        console.log('[auth.login] 用户已离职，拒绝登录:', user.name);
+        return { code: 403, message: '账号已停用，请联系管理员' };
+      }
 
       // 审核测试号（合成 openid 用户）不允许正常入口登录
       if (user.name === '审核测试') {

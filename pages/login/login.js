@@ -147,6 +147,9 @@ Page({
         });
       } else if (result.code === 402) {
         this.setData({ step: 'wechatInfo' });
+      } else if (result.code === 403) {
+        wx.removeStorageSync('userInfo');
+        wx.showToast({ title: result.message || '账号已停用', icon: 'none', duration: 3000 });
       } else {
         wx.showToast({ title: result.message || '登录失败', icon: 'none' });
       }

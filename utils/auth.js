@@ -143,8 +143,8 @@ const autoLogin = (extraData = {}) => {
           app.globalData.userInfo = user;
           resolve(user);
         } else {
-          // 审核模式关闭后清退，清掉旧 Storage
-          if (result && result.code === 401) {
+          // 被清退时清除本地缓存
+          if (result && (result.code === 401 || result.code === 403)) {
             wx.removeStorageSync('userInfo');
             wx.removeStorageSync('reviewMode');
           }
