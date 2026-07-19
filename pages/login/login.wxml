@@ -35,7 +35,7 @@
     <!-- 审核快捷登录：仅审核模式下显示 -->
     <view class="review-login" wx:if="{{reviewMode}}">
       <view class="review-divider"><text>审核快捷通道</text></view>
-      <button class="btn-review" bindtap="reviewQuickLogin" loading="{{reviewLoading}}" disabled="{{!agreed}}">
+      <button class="btn-review" bindtap="reviewQuickLogin" loading="{{reviewLoading}}">
         审核测试登录（一键进入）
       </button>
       <text class="review-hint">内部管理工具，审核人员专用入口</text>
