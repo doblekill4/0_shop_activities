@@ -44,8 +44,8 @@ Page({
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         this._initMultiSelector(today);
-        // 审核模式下默认显示全部活动
-        const isReview = wx.getStorageSync('reviewMode');
+        // 审核模式：globalData 最可靠，Storage 可能残留
+        const isReview = app.globalData._reviewMode;
         this.setData({
           canCreate: hasPermission('create_activity'),
           showRegister: false,

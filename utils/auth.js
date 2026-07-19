@@ -132,15 +132,15 @@ const autoLogin = (extraData = {}) => {
         if (result && result.code === 0) {
           const user = result.data.userInfo;
           wx.setStorageSync('userInfo', user);
-          // 审核模式标记（同步云端状态）
+          // 审核模式标记（云端状态覆盖 globalData + Storage）
           if (result.data.reviewMode) {
             wx.setStorageSync('reviewMode', true);
           } else {
             wx.removeStorageSync('reviewMode');
           }
-          const app = getApp();
-          app.globalData.isLoggedIn = true;
-          app.globalData.userInfo = user;
+          getApp().globalData._reviewMode = !!result.data.reviewMode;
+          getApp().globalData.isLoggedIn = true;
+          getApp().globalData.userInfo = user;
           resolve(user);
         } else {
           // 被清退时清除本地缓存

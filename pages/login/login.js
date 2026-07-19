@@ -52,9 +52,11 @@ Page({
       const data = (res.result || {}).data || {};
       if (data.reviewMode) {
         wx.setStorageSync('reviewMode', true);
+        app.globalData._reviewMode = true;
         this.setData({ reviewMode: true });
       } else {
         wx.removeStorageSync('reviewMode');
+        app.globalData._reviewMode = false;
       }
     } catch (e) { /* 忽略 */ }
   },
