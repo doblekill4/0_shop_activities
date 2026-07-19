@@ -5,7 +5,7 @@
 - 云开发环境 ID: `cloud1-6gxw5t089a5cfdce`
 - ICP 备案已通过
 - 微信 AppID: `wx48dc1d4e69e6c3aa`
-- 当前版本: `1.0.3`（`app.js` 的 `appVersion` 统一管理）
+- 当前版本: `1.0.4`（`app.js` 的 `appVersion` 统一管理）
 
 ## ⚠️ 发布后必做
 正式版发布后，在云开发控制台 → `notifications` 云函数 → 环境变量添加：
