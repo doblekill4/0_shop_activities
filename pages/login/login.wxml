@@ -17,18 +17,25 @@
       <text class="card-desc">授权获取你的微信信息，用于活动管理和身份识别</text>
 
       <text class="internal-notice">非公开小程序，仅限店铺内部员工经管理员授权后使用</text>
-      <button class="btn-auth" bindtap="handleAuth" loading="{{loading}}">
+
+      <view class="agreement-check" bindtap="toggleAgree">
+        <view class="check-box {{agreed ? 'checked' : ''}}">
+          <text wx:if="{{agreed}}">✓</text>
+        </view>
+        <text class="check-label">我已阅读并同意</text>
+        <text class="check-link" catchtap="openPrivacy">《隐私政策》</text>
+      </view>
+
+      <button class="btn-auth" bindtap="handleAuth" loading="{{loading}}" disabled="{{!agreed}}">
         <text wx:if="{{!loading}}">微信授权登录</text>
         <text wx:else>授权中...</text>
       </button>
-
-      <text class="agreement-text">登录即表示同意使用条款和隐私政策</text>
     </view>
 
     <!-- 审核快捷登录：仅审核模式下显示 -->
     <view class="review-login" wx:if="{{reviewMode}}">
       <view class="review-divider"><text>审核快捷通道</text></view>
-      <button class="btn-review" bindtap="reviewQuickLogin" loading="{{reviewLoading}}">
+      <button class="btn-review" bindtap="reviewQuickLogin" loading="{{reviewLoading}}" disabled="{{!agreed}}">
         审核测试登录（一键进入）
       </button>
       <text class="review-hint">内部管理工具，审核人员专用入口</text>

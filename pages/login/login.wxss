@@ -90,6 +90,35 @@
   margin-bottom: 16rpx;
 }
 
+/* 隐私政策勾选 */
+.agreement-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
+}
+.check-box {
+  width: 32rpx;
+  height: 32rpx;
+  border: 2rpx solid rgba(255,255,255,0.6);
+  border-radius: 6rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12rpx;
+  font-size: 22rpx;
+  color: #2E7D32;
+}
+.check-box.checked {
+  background: #2E7D32;
+  border-color: #2E7D32;
+  color: #fff;
+}
+.check-label { font-size: 24rpx; color: rgba(255,255,255,0.75); }
+.check-link { font-size: 24rpx; color: #81C784; text-decoration: underline; }
+.btn-auth[disabled] { opacity: 0.4; }
+.btn-review[disabled] { opacity: 0.4; }
+
 .btn-auth {
   width: 100%;
   background: #07C160;

@@ -8,6 +8,7 @@ Page({
     loading: false,
     reviewLoading: false,
     reviewMode: false,  // 审核模式快捷入口
+    agreed: false,      // 隐私政策勾选
     saving: false,
     isEmployee: false,
     fromGroup: false,
@@ -240,6 +241,14 @@ Page({
       wx.showToast({ title: '注册失败，请重试', icon: 'none' });
     }
     this.setData({ saving: false });
+  },
+
+  toggleAgree() {
+    this.setData({ agreed: !this.data.agreed });
+  },
+
+  openPrivacy() {
+    wx.openPrivacyContract ? wx.openPrivacyContract() : wx.showToast({ title: '隐私政策功能暂不可用', icon: 'none' });
   },
 
   _enterApp() {
