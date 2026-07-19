@@ -18,30 +18,33 @@
 
           <!-- 提醒时机 -->
           <view class="form-item">
-            <text class="form-label">提醒时机</text>
+            <text class="form-label">触发条件</text>
             <picker mode="selector" range="{{timingOptions}}" value="{{item.timingIndex}}"
               bindchange="onTimingChange" data-index="{{index}}">
               <view class="form-input picker-value">{{timingOptions[item.timingIndex]}}</view>
             </picker>
           </view>
 
-          <!-- 提前/延后分钟（事件驱动类型无需设分钟） -->
+          <!-- 提前/延后分钟 -->
           <view class="form-item" wx:if="{{item.timingIndex <= 2}}">
             <text class="form-label">{{item.timingIndex === 1 ? '延后' : '提前'}}分钟</text>
             <input class="form-input" type="number" value="{{item.minutes}}"
               bindinput="onMinutesInput" data-index="{{index}}" placeholder="30" />
           </view>
-          <view wx:elif="{{item.timingIndex === 3}}" class="auto-target-hint">
-            <text>📌 上一环节确认完成后即时通知下一环节负责人</text>
-          </view>
-          <view wx:elif="{{item.timingIndex === 4}}" class="auto-target-hint">
-            <text>📌 每个环节完成后即时通知指定部门</text>
+
+          <!-- 通知对象类型 -->
+          <view class="form-item">
+            <text class="form-label">通知对象</text>
+            <picker mode="selector" range="{{targetModes}}" value="{{item.targetMode || 0}}"
+              bindchange="onTargetModeChange" data-index="{{index}}">
+              <view class="form-input picker-value">{{targetModes[item.targetMode || 0]}}</view>
+            </picker>
           </view>
 
-          <!-- 目标类型（活动级规则 + 全部流程结束后规则需要手动选择） -->
-          <block wx:if="{{item.timingIndex <= 1 || item.timingIndex === 4}}">
+          <!-- 手动选择目标 -->
+          <block wx:if="{{!item.targetMode || item.targetMode === 0}}">
             <view class="form-item">
-              <text class="form-label">通知对象</text>
+              <text class="form-label">人员/群组</text>
               <picker mode="selector" range="{{['指定人员', '部门群组']}}" value="{{item.targetTypeIndex}}"
                 bindchange="onTargetTypeChange" data-index="{{index}}">
                 <view class="form-input picker-value">{{item.targetTypeIndex === 0 ? '指定人员' : '部门群组'}}</view>

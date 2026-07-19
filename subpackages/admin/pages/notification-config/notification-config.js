@@ -6,13 +6,19 @@ Page({
   data: {
     rules: [],
     timingOptions: [
-      '活动开始前',
-      '活动结束后',
-      '流程开始前（通知环节负责人）',
-      '上一流程结束后（通知下一环节负责人）',
-      '上一流程结束后（通知指定部门）',
-      '最后环节完成后（通知预订人）',
-      '活动被他人修改后（通知预订人）',
+      '活动开始前 N 分钟',
+      '活动结束后 N 分钟',
+      '环节开始前 N 分钟',
+      '上一环节完成后',
+      '每环节完成后',
+      '最后环节完成后',
+      '活动被他人修改后',
+    ],
+    targetModes: [
+      '指定人员',
+      '下一环节负责人',
+      '指定部门主管',
+      '预订人',
     ],
     departments: [],
     allUsers: [],
@@ -53,9 +59,10 @@ Page({
   addRule() {
     const rules = [...this.data.rules, {
       id: Date.now(),
-      timingIndex: 0,  // 0=开始前, 1=结束后
+      timingIndex: 0,
       minutes: 30,
-      targetTypeIndex: 0,  // 0=人员, 1=群组
+      targetMode: 0,  // 0=手动, 1=下一负责人, 2=部门主管, 3=预订人
+      targetTypeIndex: 0,  // 手动模式下 0=人员, 1=群组
       targets: [],
     }];
     this.setData({ rules });
@@ -70,13 +77,15 @@ Page({
 
   onTimingChange(e) {
     const idx = e.currentTarget.dataset.index;
+    this.setData({ [`rules[${idx}].timingIndex`]: Number(e.detail.value) });
+  },
+
+  onTargetModeChange(e) {
+    const idx = e.currentTarget.dataset.index;
     const newVal = Number(e.detail.value);
-    // timingIndex=4（通知指定部门）时默认选部门群组
-    const updates = { [`rules[${idx}].timingIndex`]: newVal };
-    if (newVal >= 4) {
-      // timingIndex 4/5/6 自动选择目标（部门/预订人），不需要手动选
-      updates[`rules[${idx}].targets`] = [];
-    }
+    const updates = { [`rules[${idx}].targetMode`]: newVal };
+    // 自动模式清空手动选的人员列表
+    if (newVal > 0) updates[`rules[${idx}].targets`] = [];
     this.setData(updates);
   },
 
@@ -97,8 +106,7 @@ Page({
     const ruleIndex = e.currentTarget.dataset.ruleIndex;
     const rule = this.data.rules[ruleIndex];
     if (!rule) return;
-    // timingIndex=4（通知部门）强制用部门列表
-    const useDepartments = rule.targetTypeIndex === 1 || rule.timingIndex === 4;
+    const useDepartments = rule.targetTypeIndex === 1;
     const list = useDepartments ? this.data.departments : this.data.allUsers;
     if (!list || list.length === 0) {
       wx.showToast({ title: '暂无可选人员或群组', icon: 'none' });

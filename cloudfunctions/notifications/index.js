@@ -176,8 +176,8 @@ async function hookStepCompleted(event, openid) {
 
   console.log('[hookStepCompleted] stepIndex:', stepIndex, 'rules:', rules.length, 'timingIndex:', rules.map(r => r.timingIndex));
 
-  // 下一环节通知（timingIndex === 3）：跳过已完成的环节，顺延通知下一个未完成环节
-  const hasNextStep = rules.some(r => r.timingIndex === 3);
+  // 下一环节通知：timingIndex=3 配合 targetMode 决定通知对象
+  const hasNextStep = rules.some(r => r.timingIndex === 3 && (r.targetMode || 1) === 1);
   console.log('[hookStepCompleted] hasNextStep:', hasNextStep, 'steps total:', steps.length);
   const notifyInfo = { sent: false, ownerName: '', ownerNotifyEnabled: true };
   if (hasNextStep) {
@@ -188,23 +188,22 @@ async function hookStepCompleted(event, openid) {
     const nextStep = steps[nextIdx];
     console.log('[hookStepCompleted] nextIdx:', nextIdx, 'nextStep:', nextStep ? nextStep.stepName : '无', 'ownerId:', nextStep ? nextStep.ownerId : '');
     if (!nextStep) {
-      // 最后一个环节完成 → 通知预订人（timingIndex === 5）
-      const notifyBooker = rules.some(r => r.timingIndex === 5);
-      if (notifyBooker && actRes.data.bookingPerson) {
-        const bookerRes = await db.collection('users')
-          .where({ name: actRes.data.bookingPerson }).get().catch(() => ({ data: [] }));
-        const booker = bookerRes.data && bookerRes.data[0];
-        if (booker && booker.openid && booker.notifyEnabled !== false) {
+      // 最后一个环节完成 → 按 targetMode 通知
+      const lastStepRules = rules.filter(r => r.timingIndex === 5);
+      for (const rule of lastStepRules) {
+        const targets = await resolveTargets(rule, actRes.data, steps, stepIndex);
+        for (const t of targets) {
+          const tu = await db.collection('users').doc(t.id).get().catch(() => null);
+          if (!tu || !tu.data || !tu.data.openid || tu.data.notifyEnabled === false) continue;
           const unit = fit(actRes.data.activityUnit, 20);
           const stepMsg = fit(`「${steps[stepIndex].stepName || ''}」已完成`, 20);
           const venue = fit(actRes.data.venue, 20);
-          await sendRobust(booker.openid, [
-            [TMPL_ID, { thing24: { value: unit }, thing12: { value: stepMsg }, thing10: { value: venue }, name3: { value: fit(booker.name, 10) }, time27: { value: steps[stepIndex].endTime || '' } }],
-            [TMPL_STATUS, { time4: { value: steps[stepIndex].endTime || '' }, thing1: { value: unit }, thing2: { value: stepMsg }, phrase3: { value: '已完成' }, thing7: { value: fit(booker.name, 10) } }],
+          await sendRobust(tu.data.openid, [
+            [TMPL_ID, { thing24: { value: unit }, thing12: { value: stepMsg }, thing10: { value: venue }, name3: { value: fit(tu.data.name, 10) }, time27: { value: steps[stepIndex].endTime || '' } }],
+            [TMPL_STATUS, { time4: { value: steps[stepIndex].endTime || '' }, thing1: { value: unit }, thing2: { value: stepMsg }, phrase3: { value: '已完成' }, thing7: { value: fit(tu.data.name, 10) } }],
           ], actRes.data._id);
           notifyInfo.sent = true;
-          notifyInfo.ownerName = booker.name;
-          console.log('[hookStepCompleted] 最后环节完成，已通知预订人:', booker.name);
+          notifyInfo.ownerName = tu.data.name;
         }
       }
       notifyInfo.reason = 'last_step';
@@ -569,27 +568,28 @@ async function notifyBookingPersonOnEdit(event) {
       const gRes = await db.collection('activities').doc('_system_global_rules').get();
       if (gRes.data && gRes.data.value) rules = gRes.data.value;
     } catch (e) { /* 忽略 */ }
-    const hasRule = rules.some(r => r.timingIndex === 6);
-    if (!hasRule) return { code: 0, message: '无对应规则，跳过' };
+    const editRules = rules.filter(r => r.timingIndex === 6);
+    if (!editRules.length) return { code: 0, message: '无对应规则，跳过' };
 
     const actRes = await db.collection('activities').doc(activityId).get();
-    if (!actRes.data || !actRes.data.bookingPerson) return { code: 0, message: '无预订人，跳过' };
+    if (!actRes.data) return { code: 0, message: '活动不存在' };
 
-    const bookerRes = await db.collection('users')
-      .where({ name: actRes.data.bookingPerson }).get().catch(() => ({ data: [] }));
-    const booker = bookerRes.data && bookerRes.data[0];
-    if (!booker || !booker.openid || booker.notifyEnabled === false) {
-      return { code: 0, message: '预订人未授权通知' };
+    const steps = actRes.data.steps || [];
+    for (const rule of editRules) {
+      const targets = await resolveTargets(rule, actRes.data, steps, 0);
+      for (const t of targets) {
+        const tu = await db.collection('users').doc(t.id).get().catch(() => null);
+        if (!tu || !tu.data || !tu.data.openid || tu.data.notifyEnabled === false) continue;
+        const unit = fit(actRes.data.activityUnit, 20);
+        const venue = fit(actRes.data.venue, 20);
+        const msg = fit(`${editorName || '其他人'}修改了活动信息`, 20);
+        await sendRobust(tu.data.openid, [
+          [TMPL_ID, { thing24: { value: unit }, thing12: { value: msg }, thing10: { value: venue }, name3: { value: fit(tu.data.name, 10) }, time27: { value: actRes.data.activityDate || '' } }],
+          [TMPL_STATUS, { time4: { value: actRes.data.activityDate || '' }, thing1: { value: unit }, thing2: { value: msg }, phrase3: { value: '已修改' }, thing7: { value: fit(tu.data.name, 10) } }],
+        ], activityId);
+      }
     }
-
-    const unit = fit(actRes.data.activityUnit, 20);
-    const venue = fit(actRes.data.venue, 20);
-    const msg = fit(`${editorName || '其他人'}修改了活动信息`, 20);
-    await sendRobust(booker.openid, [
-      [TMPL_ID, { thing24: { value: unit }, thing12: { value: msg }, thing10: { value: venue }, name3: { value: fit(booker.name, 10) }, time27: { value: actRes.data.activityDate || '' } }],
-      [TMPL_STATUS, { time4: { value: actRes.data.activityDate || '' }, thing1: { value: unit }, thing2: { value: msg }, phrase3: { value: '已修改' }, thing7: { value: fit(booker.name, 10) } }],
-    ], activityId);
-    console.log('[notifyBookingPersonOnEdit] 已通知预订人:', booker.name);
+    console.log('[notifyBookingPersonOnEdit] 已通知');
     return { code: 0, message: '已通知' };
   } catch (e) {
     console.warn('[notifyBookingPersonOnEdit] 失败:', e.message);
@@ -663,6 +663,50 @@ async function sendRobust(openid, tmplDataPairs, pageId) {
   console.warn('[sendRobust] 所有模板已用完');
   await setNotifyError(openid, 43101, lastErr || '所有模板授权已用完');
   return null;
+}
+
+/* ========== 根据 targetMode 解析通知对象 ========== */
+// targetMode: 0=手动指定, 1=下一环节负责人, 2=指定部门主管, 3=预订人
+async function resolveTargets(rule, actData, steps, stepIndex) {
+  const mode = rule.targetMode || 0;
+  if (mode === 0) return (rule.targets || []).map(t => ({ id: t.id, name: t.name }));
+
+  if (mode === 1) {
+    // 下一环节负责人
+    let ni = stepIndex + 1;
+    while (ni < (steps || []).length && (steps[ni] || {}).completedAt) ni++;
+    const ns = steps && steps[ni];
+    if (!ns || !ns.ownerId || ns.ownerId === '__pending__') return [];
+    return [{ id: ns.ownerId, name: ns.ownerName || '' }];
+  }
+
+  if (mode === 2) {
+    // 指定部门主管（从 rule.targets 中的部门查成员）
+    const deptNames = (rule.targets || []).map(t => t.name);
+    if (!deptNames.length) return [];
+    const users = [];
+    for (const dn of deptNames) {
+      const deptUsers = await db.collection('users')
+        .where({ department: dn, status: db.command.neq('inactive') })
+        .field({ _id: true, name: true })
+        .get().catch(() => ({ data: [] }));
+      for (const u of (deptUsers.data || [])) {
+        if (!users.find(x => x.id === u._id)) users.push({ id: u._id, name: u.name });
+      }
+    }
+    return users;
+  }
+
+  if (mode === 3) {
+    // 预订人
+    if (!actData.bookingPerson) return [];
+    const br = await db.collection('users')
+      .where({ name: actData.bookingPerson }).get().catch(() => ({ data: [] }));
+    const b = br.data && br.data[0];
+    return b ? [{ id: b._id, name: b.name, openid: b.openid }] : [];
+  }
+
+  return [];
 }
 
 /* ========== 通知状态追踪 ========== */
