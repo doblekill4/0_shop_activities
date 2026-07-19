@@ -1,5 +1,5 @@
 // pages/admin/departments/departments.js
-const { getDepartments, createDepartment, updateDepartment, deleteDepartment, getUsers, getPermissionGroups } = require('../../../services/admin');
+const { getDepartments, createDepartment, updateDepartment, deleteDepartment, getUsers, getPermissionGroups, clearUserCache } = require('../../../services/admin');
 
 Page({
   data: {
@@ -143,6 +143,7 @@ Page({
     try {
       await updateDepartment(pickerDeptId, { members: newMembers });
       this.setData({ showMemberPicker: false });
+      clearUserCache();
       this._reload();
     } catch (e) {
       wx.showToast({ title: "更新失败", icon: 'none' });
