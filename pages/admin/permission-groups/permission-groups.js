@@ -1,7 +1,7 @@
 // pages/admin/permission-groups/permission-groups.js
 const {
   getPermissionGroups, createPermissionGroup, updatePermissionGroup, deletePermissionGroup,
-  getUsers, updateUser, clearUserCache,
+  getUsers, updateUser,
 } = require('../../../services/admin');
 const { getCurrentUser } = require('../../../utils/auth');
 
@@ -167,7 +167,6 @@ Page({
         }
       }
       this.setData({ showEditor: false });
-      clearUserCache();
       this._reload();
     } catch (e) {
       wx.showToast({ title: "保存失败", icon: 'none' });
@@ -232,7 +231,6 @@ Page({
         }
       }
       this.setData({ showMemberPicker: false });
-      clearUserCache();
       this._reload();
     } catch (e) {
       wx.showToast({ title: "保存成员失败", icon: 'none' });
@@ -255,7 +253,6 @@ Page({
         if (!res.confirm) return;
         try {
           await deletePermissionGroup(id);
-          clearUserCache();
           self._reload();
         } catch (e) {
           wx.showToast({ title: "删除失败", icon: 'none' });
