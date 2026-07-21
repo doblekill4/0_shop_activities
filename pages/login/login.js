@@ -236,7 +236,7 @@ Page({
         employeeId: employeeId.trim(),
         department: department,
         avatarUrl: finalAvatarUrl,
-        fromGroup: isEmployee || enterOptions.scene === 1044,
+        fromGroup: isEmployee || enterOptions.scene === 1044 || enterOptions.scene === 1008,
         groupEncryptedData: this._groupEncryptedData || '',
         scene: enterOptions.scene || 0,
         groupIv: this._groupIv || '',

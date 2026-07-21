@@ -193,7 +193,7 @@ async function autoLogin(openid, event = {}) {
 async function login(event, openid) {
   const { name, department, nickname, avatarUrl, employeeId, role, fromGroup, groupEncryptedData, groupIv, scene } = event;
   // 体验版 getGroupEnterInfo 可能无加密数据，用 scene 兜底
-  const fromGroupScene = !fromGroup && scene === 1044;
+  const fromGroupScene = !fromGroup && (scene === 1044 || scene === 1008);
   const effectiveFromGroup = fromGroup || fromGroupScene;
 
   try {
