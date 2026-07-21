@@ -245,7 +245,7 @@ Page({
       this._enterApp();
     } catch (err) {
       console.error('[saveProfile] 注册失败:', err);
-      wx.showToast({ title: '注册失败，请重试', icon: 'none' });
+      wx.showToast({ title: err.message || err || '注册失败，请重试', icon: 'none', duration: 3000 });
     }
     this.setData({ saving: false });
   },
