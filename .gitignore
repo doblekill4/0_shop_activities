@@ -15,6 +15,7 @@ node_modules/
 
 # 微信小程序
 project.private.config.json
+private.*.key
 *.log
 
 # WorkBuddy（AI 工作记忆，个人上下文不纳入版本控制）
